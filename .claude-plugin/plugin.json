@@ -1,0 +1,31 @@
+{
+  "name": "agentic-workflow-framework",
+  "description": "Multi-agent orchestration conventions: orchestrator mode, 8 subagent roles, slash commands, hooks.",
+  "author": { "name": "Jean Brito", "url": "https://github.com/jeanfbrito" },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -d .claude/mytasks ]; then found=0; if grep -qE '^## [0-9]{4}-' .claude/mytasks/blockers.md 2>/dev/null; then echo 'Active blockers: .claude/mytasks/blockers.md'; found=1; fi; for f in .claude/mytasks/handoffs/*.md; do [ -e \"$f\" ] && { echo \"Open handoff: $f\"; found=1; }; done; if [ \"$found\" -eq 0 ]; then echo 'agentic: armed'; fi; fi",
+            "timeout": 5,
+            "statusMessage": "Checking agentic session state..."
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/orchestrator.sh\"",
+            "timeout": 5,
+            "statusMessage": "Orchestrator check..."
+          }
+        ]
+      }
+    ]
+  }
+}

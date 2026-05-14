@@ -1,0 +1,14 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "agentic-workflow-framework",
+  "description": "Multi-agent orchestration conventions for Claude Code — planner, builders, finders, reviewers, testers + handoff/blocker/known-issue ledger.",
+  "owner": { "name": "Jean Brito", "url": "https://github.com/jeanfbrito" },
+  "plugins": [
+    {
+      "name": "agentic-workflow-framework",
+      "description": "Orchestrator mode + 8 subagents + 5 slash commands + reinforcement hooks.",
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}
