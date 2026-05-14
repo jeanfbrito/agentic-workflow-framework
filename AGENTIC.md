@@ -69,6 +69,21 @@ If uncertain between "do it" and "dispatch" → **dispatch**. The user chose thi
 - When given a bug report: just fix it. Zero context switching for the user.
 - Understand WHY code is written that way — don't assume it's wrong. If unsure, ASK. Working code is correct until proven otherwise.
 
+## Operational Tools
+
+This framework works best alongside three tools when they are available:
+
+- **GitNexus** — code graph questions, impact analysis, callers/callees, and execution-flow discovery before editing. Use this BEFORE grepping or spawning Finders against large unfamiliar codebases.
+- **context-mode** — large file reads, broad searches, logs, test output, and any command output that would otherwise flood the model context.
+- **RTK** — short shell commands where token-filtered output is useful and does not conflict with context-mode routing.
+
+Exploration order for any non-trivial task:
+
+1. Query GitNexus for graph, flow, and impact context.
+2. Use context-mode for large searches, files, logs, and generated output.
+3. Use a bounded `finder` task for remaining code exploration.
+4. Reserve the reasoning model (Planner/Auditor) for decisions, not raw exploration.
+
 ## Verification
 
 - Never mark a task complete without proving it works.

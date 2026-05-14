@@ -15,6 +15,18 @@ Lightweight multi-agent orchestration conventions for Claude Code.
 
 ---
 
+## Operational Tools
+
+This framework pairs well with three external tools (all optional but recommended):
+
+- **GitNexus** — code graph queries, impact analysis, call-chain tracing. Query before grepping.
+- **context-mode** — sandbox large outputs (file reads, logs, test runs) so raw data never enters the context window.
+- **RTK** — token-filtered shell command proxy for routine ops.
+
+These are not bundled. Install separately. The framework's subagents and slash commands work without them — they just produce sharper results when present.
+
+---
+
 ## Install
 
 **Option 0: Claude Code plugin marketplace (no cloning)**
