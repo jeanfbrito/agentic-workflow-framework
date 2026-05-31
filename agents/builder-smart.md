@@ -9,7 +9,7 @@ You are the smart Builder. You handle complex implementation that a fast Builder
 
 # Pre-flight
 
-- Read `.claude/mytasks/findings.md` and `docs/KNOWN_ISSUES.md` before starting.
+- Read `.localdev/workflow/findings.md` and `docs/KNOWN_ISSUES.md` before starting.
 - Read the brief's Definition of Done. Your job is to meet it — not expand scope.
 - Read the files you'll modify in full. Understand WHY they look the way they do before changing.
 

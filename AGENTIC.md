@@ -1,6 +1,6 @@
 # Agentic Workflow Framework
 
-Lightweight conventions for multi-session, multi-agent work in existing codebases. Working files live under `.claude/mytasks/` (gitignored via `.claude/`). `docs/KNOWN_ISSUES.md` is committed.
+Lightweight conventions for multi-session, multi-agent work in existing codebases. Working state lives under `.localdev/workflow/`; add `.localdev/` to the project `.gitignore` so it stays uncommitted. `docs/KNOWN_ISSUES.md` is committed.
 
 ## Operating Mode — Orchestrator (default)
 
@@ -30,7 +30,7 @@ If uncertain between "do it" and "dispatch" → **dispatch**. The user chose thi
 
 1. Read pre-warmed context once at task start: open handoffs, active blockers, current findings, `docs/KNOWN_ISSUES.md`, current `todo.md`.
 2. Infer tier (`trivial` / `medium` / `full`, see § Tier semantics).
-3. Write a 2–5 line brief to `.claude/mytasks/todo.md` with Definition of Done.
+3. Write a 2–5 line brief to `.localdev/workflow/todo.md` with Definition of Done.
 4. Dispatch subagents in background.
 5. Review subagent output, compose a tight answer for the user. Raw subagent output stays in their context, not yours.
 
@@ -42,17 +42,17 @@ If uncertain between "do it" and "dispatch" → **dispatch**. The user chose thi
 
 ## Multi-Session Work
 
-- **Handoffs**: When finishing a task that will continue in another session, write a handoff to `.claude/mytasks/handoffs/<task-name>.md` covering what was done, key decisions, what's next, and open questions. When resuming multi-session work, check `.claude/mytasks/handoffs/` FIRST before doing anything else. Delete the file once the feature is complete — it's scaffolding, not documentation.
-- **Agent blockers**: When you hit ambiguity you cannot resolve from code, docs, or git history — write the entry to `.claude/mytasks/blockers.md` (context, blocker, what you need, files involved) and ask the user. If resolved, remove the entry and continue. If not, halt that task. The file ensures blockers survive between sessions.
+- **Handoffs**: When finishing a task that will continue in another session, write a handoff to `.localdev/workflow/handoffs/<task-name>.md` covering what was done, key decisions, what's next, and open questions. When resuming multi-session work, check `.localdev/workflow/handoffs/` FIRST before doing anything else. Delete the file once the feature is complete — it's scaffolding, not documentation.
+- **Agent blockers**: When you hit ambiguity you cannot resolve from code, docs, or git history — write the entry to `.localdev/workflow/blockers.md` (context, blocker, what you need, files involved) and ask the user. If resolved, remove the entry and continue. If not, halt that task. The file ensures blockers survive between sessions.
 - **Known issues**: When you discover a persistent platform or dependency constraint (not a task blocker, a fact of life), document it in `docs/KNOWN_ISSUES.md` with status, workaround, affected files, and reference. This is permanent project knowledge.
-- **Definition of Done**: Each task in `.claude/mytasks/todo.md` MUST include verifiable done criteria. "Implement X" is not done. "Implement X, verify Y, tests pass" is. If you can't check it, it's not done.
+- **Definition of Done**: Each task in `.localdev/workflow/todo.md` MUST include verifiable done criteria. "Implement X" is not done. "Implement X, verify Y, tests pass" is. If you can't check it, it's not done.
 
 ## Planning
 
 - Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions).
 - If something goes sideways, STOP and re-plan — don't keep pushing.
 - **2-strike rule**: After 2 failed approaches to the same problem, STOP. Do not try a 3rd. Dispatch an Auditor (reasoning model) to diagnose the root constraint, then re-plan from that constraint.
-- Write plans to `.claude/mytasks/todo.md` with checkable items + done criteria.
+- Write plans to `.localdev/workflow/todo.md` with checkable items + done criteria.
 - Check in with the user before starting implementation.
 - Track progress, mark items complete, give high-level summary at each step.
 
@@ -113,12 +113,12 @@ Rule of thumb: "Where is X in the code?" → finder. "How does library Y work?" 
 
 **Pipeline**: planner briefs → finders/researchers (parallel, write to `findings.md`) → builders (fast in parallel, smart serialized by file) → reviewer → planner approves.
 
-**Findings** (`.claude/mytasks/findings.md`): When Finders or Researchers discover something other agents need to know before acting, write it here. Builders read it before starting. Ephemeral — delete on session close. Difference from blockers: findings *inform*; blockers *halt until resolved*.
+**Findings** (`.localdev/workflow/findings.md`): When Finders or Researchers discover something other agents need to know before acting, write it here. Builders read it before starting. Ephemeral — delete on session close. Difference from blockers: findings *inform*; blockers *halt until resolved*.
 
 ## Slash Commands
 
 - `/agentic <task> [--tier=trivial|medium|full]` — explicit one-shot dispatch with tier control. *The main chat already auto-applies this pipeline under Orchestrator mode; use this command only to pin a specific tier or force-dispatch when the reflex rules would skip.*
-- `/init-agentic` — scaffold `.claude/mytasks/` + `docs/KNOWN_ISSUES.md` in the current project
+- `/init-agentic` — scaffold `.localdev/workflow/` + `docs/KNOWN_ISSUES.md` in the current project
 - `/handoff <task-name>` — write a cross-session handoff from current session context
 - `/blocker <summary>` — append a decision blocker in canonical format and halt
 - `/known-issue <summary>` — append to `docs/KNOWN_ISSUES.md`
@@ -142,7 +142,7 @@ Rules:
 
 Blockers and handoffs use fixed formats so hooks and slash commands can parse them reliably.
 
-### `.claude/mytasks/blockers.md`
+### `.localdev/workflow/blockers.md`
 
 ```
 # Active Blockers
@@ -156,7 +156,7 @@ Blockers and handoffs use fixed formats so hooks and slash commands can parse th
 
 The H2 header MUST start with `## ` followed by a 4-digit year. The SessionStart hook uses `grep -qE '^## [0-9]{4}-'` to detect active blockers; mismatched heading depth = silent false negative.
 
-### `.claude/mytasks/handoffs/<task-name>.md`
+### `.localdev/workflow/handoffs/<task-name>.md`
 
 ```
 # <task>
@@ -175,7 +175,7 @@ The H2 header MUST start with `## ` followed by a 4-digit year. The SessionStart
 - <path>
 ```
 
-### `.claude/mytasks/findings.md`
+### `.localdev/workflow/findings.md`
 
 Flat append log — no structural requirements. Ephemeral; delete on session close.
 
@@ -184,10 +184,10 @@ Flat append log — no structural requirements. Ephemeral; delete on session clo
 Framework paths are pre-allowed in `~/.claude/settings.json` (global scope) so sessions don't prompt when agents write to them:
 
 ```
-Write(.claude/mytasks/**)
-Edit(.claude/mytasks/**)
-Write(.claude/mytasks/handoffs/**)
-Edit(.claude/mytasks/handoffs/**)
+Write(.localdev/workflow/**)
+Edit(.localdev/workflow/**)
+Write(.localdev/workflow/handoffs/**)
+Edit(.localdev/workflow/handoffs/**)
 Write(docs/KNOWN_ISSUES.md)
 Edit(docs/KNOWN_ISSUES.md)
 ```
@@ -196,18 +196,18 @@ One-time setup, covers all projects. Scope matches framework footprint — no br
 
 ## SessionStart hook
 
-On every session start, the hook (installed in `~/.claude/settings.json`) scans the CWD for `.claude/mytasks/` and prints:
+On every session start, the hook (installed in `~/.claude/settings.json`) scans the CWD for `.localdev/workflow/` and prints:
 - Any `.md` files in `handoffs/` (resume context)
 - A warning if `blockers.md` contains unresolved entries
 
-Silent no-op if `.claude/mytasks/` does not exist in the project.
+Silent no-op if `.localdev/workflow/` does not exist in the project.
 
 ## File Layout
 
 ```
 project-root/
-├── .claude/                        # gitignored
-│   └── mytasks/
+├── .localdev/                      # add to .gitignore (not auto-ignored)
+│   └── workflow/
 │       ├── todo.md                 # tasks + done criteria
 │       ├── blockers.md             # unresolved ambiguity (halts work)
 │       ├── findings.md             # ephemeral intra-session discoveries

@@ -21,14 +21,14 @@ If these tools are already listed in your environment, the preload is a no-op.
 
 Before writing any brief:
 
-1. Read `.claude/mytasks/handoffs/` — if a handoff exists for this task, start from it.
-2. Read `.claude/mytasks/blockers.md` and `findings.md` — don't re-discover what's already known.
+1. Read `.localdev/workflow/handoffs/` — if a handoff exists for this task, start from it.
+2. Read `.localdev/workflow/blockers.md` and `findings.md` — don't re-discover what's already known.
 3. Read `docs/KNOWN_ISSUES.md` — check for platform or dependency constraints that affect this task.
 4. Verify unknowns via context7 or web search BEFORE dispatching. Agents looping on nonexistent commands waste cycles.
 
 # The brief
 
-Write the plan to `.claude/mytasks/todo.md`. Every task must include a verifiable **Definition of Done**:
+Write the plan to `.localdev/workflow/todo.md`. Every task must include a verifiable **Definition of Done**:
 
 - [ ] &lt;task&gt;
   **Done when**: &lt;checkable criteria — tests pass, screenshot matches, DoD command exits 0&gt;
@@ -54,7 +54,7 @@ When invoked via `/agentic <task> --tier=...`, respect the tier:
 # Escalation
 
 - If a problem survives **2 failed attempts**, STOP. Do NOT try a 3rd. Dispatch an **Auditor** to diagnose the root constraint and re-brief.
-- If YOU hit ambiguity you can't resolve from code/docs/git, write to `.claude/mytasks/blockers.md` and ask the user.
+- If YOU hit ambiguity you can't resolve from code/docs/git, write to `.localdev/workflow/blockers.md` and ask the user.
 
 # Closing a task
 
@@ -63,4 +63,4 @@ Approve only when:
 - Tester confirmed every DoD item
 - Changes are surgical (no scope creep)
 
-Mark complete in `todo.md`. If the task is pausing (session ending), write a handoff to `.claude/mytasks/handoffs/<task-name>.md`.
+Mark complete in `todo.md`. If the task is pausing (session ending), write a handoff to `.localdev/workflow/handoffs/<task-name>.md`.

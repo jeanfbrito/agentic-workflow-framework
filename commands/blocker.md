@@ -1,9 +1,9 @@
 ---
-description: Append a decision blocker to .claude/mytasks/blockers.md in canonical format and halt the current task until the user resolves it
+description: Append a decision blocker to .localdev/workflow/blockers.md in canonical format and halt the current task until the user resolves it
 argument-hint: [short-summary]
 ---
 
-Append a new decision blocker to `.claude/mytasks/blockers.md`, then STOP and ask the user.
+Append a new decision blocker to `.localdev/workflow/blockers.md`, then STOP and ask the user.
 
 # Canonical entry format
 
@@ -19,7 +19,7 @@ Every blocker entry starts with an H2 date-stamp header. The SessionStart hook m
 
 # Steps
 
-1. If `.claude/mytasks/blockers.md` does not exist, create it with a `# Active Blockers` header.
+1. If `.localdev/workflow/blockers.md` does not exist, create it with a `# Active Blockers` header.
 2. Append a new entry in the canonical format above. Use today's date and current time. Fill every field from the CURRENT session — do NOT fabricate. If a field is unknown, write `<unknown>`.
 3. After writing, STOP working on the current task. Present the blocker to the user and ask for a decision.
 4. When the user resolves it:

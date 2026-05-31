@@ -16,10 +16,10 @@ Dispatch the `planner` subagent to handle `$ARGUMENTS`. This is the front door f
    - Never default to `full`. The user opts in.
 
 2. **Build the pre-warmed context block**. Read, if present:
-   - `.claude/mytasks/handoffs/*.md` — open handoffs
-   - `.claude/mytasks/blockers.md` — active blockers (canonical format, see `AGENTIC.md § Canonical entry formats`)
-   - `.claude/mytasks/findings.md` — current session findings
-   - `.claude/mytasks/todo.md` — current plan, if any
+   - `.localdev/workflow/handoffs/*.md` — open handoffs
+   - `.localdev/workflow/blockers.md` — active blockers (canonical format, see `AGENTIC.md § Canonical entry formats`)
+   - `.localdev/workflow/findings.md` — current session findings
+   - `.localdev/workflow/todo.md` — current plan, if any
    - `docs/KNOWN_ISSUES.md`
 
    Assemble a compact summary: per file, a count + first relevant line. Do not paste full bodies.
@@ -40,4 +40,4 @@ Dispatch the `planner` subagent to handle `$ARGUMENTS`. This is the front door f
 - `trivial` MUST NOT fall through to `medium` as a safety net. Skipping Reviewer is the point.
 - Ambiguous task (2+ plausible interpretations): dispatch the Planner at the inferred tier, but instruct it to ask a clarifying question BEFORE dispatching subordinates.
 - If the pre-warmed context surfaces an open handoff matching this task, fold it into the Planner's brief.
-- If `.claude/mytasks/` does not exist in the current project, run `/init-agentic` first, then retry.
+- If `.localdev/workflow/` does not exist in the current project, run `/init-agentic` first, then retry.
