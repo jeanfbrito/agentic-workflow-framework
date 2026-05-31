@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # install.sh -- Agentic Workflow Framework global installer
 # Idempotent: safe to re-run; overwrites framework files, preserves existing
-# CLAUDE.md content and settings.json entries (appends only).
+# CLAUDE.md content. settings.json hook entries are deduped by stable marker
+# (filter-then-append) so re-running never duplicates and self-heals stale entries.
+# Skills under skills/ are installed dynamically -- new skills need no installer edit.
+# permissions.allow is patched: stale .claude/mytasks globs are removed, framework
+# .localdev/workflow and docs/KNOWN_ISSUES.md globs are added (no duplicates).
 
 set -euo pipefail
 
@@ -46,6 +50,7 @@ echo "Installing Agentic Workflow Framework..."
 mkdir -p ~/.claude/agents
 mkdir -p ~/.claude/commands
 mkdir -p ~/.claude/hooks
+mkdir -p ~/.claude/skills
 
 # ---------------------------------------------------------------------------
 # 3. Copy (or link) framework files
@@ -79,6 +84,25 @@ install_file "$SCRIPT_DIR/commands/blocker.md"           ~/.claude/commands/bloc
 install_file "$SCRIPT_DIR/commands/known-issue.md"       ~/.claude/commands/known-issue.md
 
 install_file "$SCRIPT_DIR/hooks/orchestrator.sh"         ~/.claude/hooks/orchestrator.sh
+
+# ---------------------------------------------------------------------------
+# 3b. Skills -- dynamic install (loop over skills/*/)
+#     Adding a new skills/<name>/ to the repo automatically installs it here.
+# ---------------------------------------------------------------------------
+
+INSTALLED_SKILLS=()
+
+for skill_src in "$SCRIPT_DIR/skills"/*/; do
+  [ -d "$skill_src" ] || continue
+  skill_name="$(basename "$skill_src")"
+  if [ "$LINK" -eq 1 ]; then
+    ln -sfn "$skill_src" ~/.claude/skills/"$skill_name"
+  else
+    rm -rf ~/.claude/skills/"$skill_name"
+    cp -R "$skill_src" ~/.claude/skills/"$skill_name"
+  fi
+  INSTALLED_SKILLS+=("$skill_name")
+done
 
 # ---------------------------------------------------------------------------
 # 4. Executable bit
@@ -134,43 +158,80 @@ else:
 
 hooks = data.setdefault("hooks", {})
 
+
+def strip_framework(arr, marker):
+    """Filter-then-append idempotency: drop any pre-existing framework
+    entry (matched by a stable marker) so re-running never duplicates and
+    a changed command string self-heals instead of going stale."""
+    return [e for e in arr if marker not in json.dumps(e)]
+
+
 # --- SessionStart ---
 session_start = hooks.setdefault("SessionStart", [])
 ss_command = (
-    'if [ -d .claude/mytasks ]; then found=0; '
-    'if grep -qE \'^## [0-9]{4}-\' .claude/mytasks/blockers.md 2>/dev/null; '
-    'then echo \'⚠️  Active blockers: .claude/mytasks/blockers.md\'; found=1; fi; '
-    'for f in .claude/mytasks/handoffs/*.md; do '
+    'if [ -d .localdev/workflow ]; then found=0; '
+    'if grep -qE \'^## [0-9]{4}-\' .localdev/workflow/blockers.md 2>/dev/null; '
+    'then echo \'⚠️  Active blockers: .localdev/workflow/blockers.md\'; found=1; fi; '
+    'for f in .localdev/workflow/handoffs/*.md; do '
     '[ -e "$f" ] && { echo "📋 Open handoff: $f"; found=1; }; done; '
     'if [ "$found" -eq 0 ]; then echo \'✓ agentic: armed\'; fi; fi'
 )
-already_ss = any(
-    'agentic: armed' in json.dumps(entry)
-    for entry in session_start
-)
-if not already_ss:
-    session_start.append({
-        "matcher": "",
-        "hooks": [{"type": "command", "command": ss_command}]
-    })
-    print("SS_ADDED")
-else:
-    print("SS_SKIPPED")
+# Marker 'agentic: armed' is unique to this framework's SessionStart command.
+before_ss = len(session_start)
+session_start = strip_framework(session_start, 'agentic: armed')
+session_start.append({
+    "matcher": "",
+    "hooks": [{"type": "command", "command": ss_command}]
+})
+hooks["SessionStart"] = session_start
+print("SS_REPLACED" if before_ss > len(session_start) - 1 else "SS_ADDED")
 
 # --- UserPromptSubmit ---
 user_prompt = hooks.setdefault("UserPromptSubmit", [])
-already_up = any(
-    'orchestrator.sh' in json.dumps(entry)
-    for entry in user_prompt
-)
-if not already_up:
-    user_prompt.append({
-        "matcher": "",
-        "hooks": [{"type": "command", "command": "bash ~/.claude/hooks/orchestrator.sh"}]
-    })
-    print("UP_ADDED")
-else:
-    print("UP_SKIPPED")
+# Marker 'orchestrator.sh' is the stable path identifying this framework's entry.
+before_up = len(user_prompt)
+user_prompt = strip_framework(user_prompt, 'orchestrator.sh')
+user_prompt.append({
+    "matcher": "",
+    "hooks": [{"type": "command", "command": "bash ~/.claude/hooks/orchestrator.sh"}]
+})
+hooks["UserPromptSubmit"] = user_prompt
+print("UP_REPLACED" if before_up > len(user_prompt) - 1 else "UP_ADDED")
+
+# --- permissions.allow ---
+# Ensure permissions and allow list exist, preserving all existing entries + order.
+perms = data.setdefault("permissions", {})
+allow = perms.setdefault("allow", [])
+
+# MIGRATE: drop stale .claude/mytasks globs (old path, replaced by .localdev/workflow)
+before_migrate = len(allow)
+allow = [g for g in allow if '.claude/mytasks' not in g]
+migrated = before_migrate - len(allow)
+
+# GRANT: the 6 framework permission globs (add if missing, no duplicates)
+FRAMEWORK_GLOBS = [
+    "Write(.localdev/workflow/**)",
+    "Edit(.localdev/workflow/**)",
+    "Write(.localdev/workflow/handoffs/**)",
+    "Edit(.localdev/workflow/handoffs/**)",
+    "Write(docs/KNOWN_ISSUES.md)",
+    "Edit(docs/KNOWN_ISSUES.md)",
+]
+added = 0
+for glob in FRAMEWORK_GLOBS:
+    if glob not in allow:
+        allow.append(glob)
+        added += 1
+
+perms["allow"] = allow
+data["permissions"] = perms
+
+if migrated > 0:
+    print("PERMS_MIGRATED")
+if added > 0:
+    print(f"PERMS_ADDED:{added}")
+if migrated == 0 and added == 0:
+    print("PERMS_OK")
 
 with open(path, 'w') as fh:
     json.dump(data, fh, indent=2)
@@ -193,10 +254,20 @@ echo ""
 echo "--- Summary ---"
 echo ""
 
+SKILL_COUNT="${#INSTALLED_SKILLS[@]}"
+CORE_COUNT=15
 if [ "$LINK" -eq 1 ]; then
-  echo "Framework files: linked (dev mode) -- 15 symlinks to $SCRIPT_DIR"
+  echo "Framework files: linked (dev mode) -- $CORE_COUNT core symlinks + $SKILL_COUNT skill(s) to $SCRIPT_DIR"
 else
-  echo "Framework files: copied (15 files to ~/.claude/)"
+  echo "Framework files: copied ($CORE_COUNT core files + $SKILL_COUNT skill(s) to ~/.claude/)"
+fi
+
+if [ "$SKILL_COUNT" -gt 0 ]; then
+  echo ""
+  echo "Skills installed (${SKILL_COUNT}):"
+  for s in "${INSTALLED_SKILLS[@]}"; do
+    echo "  ~/.claude/skills/$s"
+  done
 fi
 
 echo ""
@@ -213,6 +284,21 @@ fi
 if grep -q 'orchestrator.sh' "$SETTINGS_JSON" 2>/dev/null; then
   echo "  hooks.UserPromptSubmit    -- orchestrator reinforcement (present)"
 fi
+echo ""
+echo "settings.json permissions.allow:"
+python3 - "$SETTINGS_JSON" <<'PYEOF'
+import json, sys
+data = json.load(open(sys.argv[1]))
+globs = data.get("permissions", {}).get("allow", [])
+fw = [g for g in globs if '.localdev/workflow' in g or 'KNOWN_ISSUES' in g]
+stale = [g for g in globs if '.claude/mytasks' in g]
+for g in fw:
+    print(f"  {g}")
+if stale:
+    print(f"  WARNING: {len(stale)} stale .claude/mytasks glob(s) still present")
+if not fw:
+    print("  (no framework globs found -- check install output above)")
+PYEOF
 if [ -f "$SETTINGS_BACKUP" ]; then
   echo "  Backup: $SETTINGS_BACKUP (one-shot, preserved across reinstalls)"
 fi
@@ -221,7 +307,7 @@ echo ""
 echo "How to use:"
 echo "  /agentic <task>         Front door for any non-trivial task. Tier is inferred;"
 echo "                          use --tier=trivial|medium|full to override."
-echo "  /init-agentic           Scaffold .claude/mytasks/ in the current project."
+echo "  /init-agentic           Scaffold .localdev/workflow/ in the current project."
 echo "  /handoff <name>         Write a cross-session handoff from current context."
 echo "  /blocker <summary>      Log an unresolved blocker and halt."
 echo "  /known-issue <summary>  Append a platform constraint to docs/KNOWN_ISSUES.md."

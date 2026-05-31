@@ -12,6 +12,8 @@ Lightweight multi-agent orchestration conventions for Claude Code.
 - **1 reinforcement hook** (`~/.claude/hooks/orchestrator.sh`) -- fires on UserPromptSubmit to prevent Orchestrator drift
 - **2 `settings.json` hook entries** -- SessionStart (blocker/handoff scanner) + UserPromptSubmit (orchestrator reinforcement)
 - **1 `CLAUDE.md` import line** -- `@AGENTIC.md` so the spec loads globally in every Claude Code session
+- **2 skills** in `~/.claude/skills/`: agentic-workflow and personal-engineering-rules
+- **4 permission globs** in `~/.claude/settings.json`: Write/Edit for `.localdev/workflow/**` and `docs/KNOWN_ISSUES.md`
 
 ---
 
@@ -59,7 +61,7 @@ Paste the raw URL of `install.md` into a Claude Code session. The agent reads th
 ./uninstall.sh
 ```
 
-Removes the 15 framework files and strips the hook entries and `@AGENTIC.md` import from `~/.claude/`. Backs up `CLAUDE.md` and `settings.json` before modifying them. Does not remove the `~/.claude/agents/`, `~/.claude/commands/`, or `~/.claude/hooks/` directories.
+Removes the framework files, installed skills, and permission globs. Strips the hook entries and `@AGENTIC.md` import from `~/.claude/`. Backs up `CLAUDE.md` and `settings.json` before modifying them. Does not remove the `~/.claude/agents/`, `~/.claude/commands/`, `~/.claude/hooks/`, or `~/.claude/skills/` directories themselves.
 
 ---
 
@@ -75,8 +77,8 @@ Removes the 15 framework files and strips the hook entries and `@AGENTIC.md` imp
 
 ```
 project-root/
-├── .claude/                        # gitignored
-│   └── mytasks/
+├── .localdev/                      # add to .gitignore (not auto-ignored)
+│   └── workflow/
 │       ├── todo.md                 # tasks + done criteria
 │       ├── blockers.md             # unresolved ambiguity (halts work)
 │       ├── findings.md             # ephemeral intra-session discoveries
@@ -93,7 +95,7 @@ project-root/
 | Command | Summary |
 |---|---|
 | `/agentic <task> [--tier=trivial\|medium\|full]` | Front door for any non-trivial task. Tier is inferred automatically. |
-| `/init-agentic` | Scaffold `.claude/mytasks/` + `docs/KNOWN_ISSUES.md` in the current project. |
+| `/init-agentic` | Scaffold `.localdev/workflow/` + `docs/KNOWN_ISSUES.md` in the current project. |
 | `/handoff <task-name>` | Write a cross-session handoff from current session context. |
 | `/blocker <summary>` | Log an unresolved blocker in canonical format and halt. |
 | `/known-issue <summary>` | Append a persistent platform constraint to `docs/KNOWN_ISSUES.md`. |
@@ -121,7 +123,7 @@ These natural-language prompts trigger orchestrator dispatch automatically:
 
 - **Slash commands not appearing**: Ensure `~/.claude/commands/` exists and contains the `.md` files. Re-run `./install.sh --yes` if in doubt.
 - **Orchestrator hook not firing**: Check that `~/.claude/hooks/orchestrator.sh` is executable (`chmod +x`) and that `settings.json` contains the `UserPromptSubmit` entry. Run `./verify.sh` to diagnose.
-- **Verify the full installation**: `./verify.sh` from the repo root runs all 6 checks and prints `[x]` / `[ ]` per item. Exit code 0 means everything is healthy.
+- **Verify the full installation**: `./verify.sh` from the repo root runs all checks (files, hooks, skills, permission globs, repo structure) and prints `[x]` / `[ ]` per item. Exit code 0 means everything is healthy.
 - **Hook fires but produces no output on short prompts**: That is expected behavior -- the orchestrator hook is a no-op for prompts under the word threshold.
 - **Reinstall doesn't overwrite backups**: By design. The named backup (`.bak.agentic-workflow-framework`) is a one-shot pre-installation snapshot. Delete it manually if you want a fresh baseline.
 

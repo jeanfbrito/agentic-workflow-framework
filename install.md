@@ -10,6 +10,8 @@ You are a Claude Code session reading this file from a raw URL. Your job is to e
 - **1 reinforcement hook** (`~/.claude/hooks/orchestrator.sh`) — fires on UserPromptSubmit to prevent Orchestrator drift
 - **2 `settings.json` hook entries** — SessionStart (blocker/handoff scanner) + UserPromptSubmit (orchestrator reinforcement)
 - **1 `CLAUDE.md` import line** — `@AGENTIC.md` so the spec loads globally in every Claude Code session
+- **2 skills** in `~/.claude/skills/`: agentic-workflow and personal-engineering-rules
+- **4 permission globs** in `~/.claude/settings.json`: Write/Edit for `.localdev/workflow/**` and `docs/KNOWN_ISSUES.md`
 
 ## Model mapping
 
@@ -24,7 +26,7 @@ You are a Claude Code session reading this file from a raw URL. Your job is to e
 <step n="1">
 Ask the user exactly this question and wait for their response:
 
-"Install Agentic Workflow Framework v3 globally to `~/.claude/`? This creates 15 files, adds two hook entries to `settings.json`, and adds `@AGENTIC.md` to `~/.claude/CLAUDE.md`. Existing files at those paths will be overwritten. Backups for `settings.json` and `CLAUDE.md` will be created before any changes. (y/n)"
+"Install Agentic Workflow Framework v3 globally to `~/.claude/`? This copies core framework files and 2 skills (agentic-workflow, personal-engineering-rules) to `~/.claude/`, grants 4 permission globs in `settings.json`, adds two hook entries, and adds `@AGENTIC.md` to `~/.claude/CLAUDE.md`. Existing files at those paths will be overwritten. Backups for `settings.json` and `CLAUDE.md` will be created before any changes. (y/n)"
 
 Proceed only if the user answers "y" or "yes" (case-insensitive). Any other response: abort and report "Installation cancelled."
 </step>
@@ -45,7 +47,7 @@ Write each file below to disk exactly as shown. Expand `~` to the user's home di
 <file path="~/.claude/AGENTIC.md">
 # Agentic Workflow Framework
 
-Lightweight conventions for multi-session, multi-agent work in existing codebases. Working files live under `.claude/mytasks/` (gitignored via `.claude/`). `docs/KNOWN_ISSUES.md` is committed.
+Lightweight conventions for multi-session, multi-agent work in existing codebases. Working state lives under `.localdev/workflow/`; add `.localdev/` to the project `.gitignore` so it stays uncommitted. `docs/KNOWN_ISSUES.md` is committed.
 
 ## Operating Mode — Orchestrator (default)
 
@@ -75,7 +77,7 @@ If uncertain between "do it" and "dispatch" → **dispatch**. The user chose thi
 
 1. Read pre-warmed context once at task start: open handoffs, active blockers, current findings, `docs/KNOWN_ISSUES.md`, current `todo.md`.
 2. Infer tier (`trivial` / `medium` / `full`, see § Tier semantics).
-3. Write a 2–5 line brief to `.claude/mytasks/todo.md` with Definition of Done.
+3. Write a 2–5 line brief to `.localdev/workflow/todo.md` with Definition of Done.
 4. Dispatch subagents in background.
 5. Review subagent output, compose a tight answer for the user. Raw subagent output stays in their context, not yours.
 
@@ -87,17 +89,17 @@ If uncertain between "do it" and "dispatch" → **dispatch**. The user chose thi
 
 ## Multi-Session Work
 
-- **Handoffs**: When finishing a task that will continue in another session, write a handoff to `.claude/mytasks/handoffs/<task-name>.md` covering what was done, key decisions, what's next, and open questions. When resuming multi-session work, check `.claude/mytasks/handoffs/` FIRST before doing anything else. Delete the file once the feature is complete — it's scaffolding, not documentation.
-- **Agent blockers**: When you hit ambiguity you cannot resolve from code, docs, or git history — write the entry to `.claude/mytasks/blockers.md` (context, blocker, what you need, files involved) and ask the user. If resolved, remove the entry and continue. If not, halt that task. The file ensures blockers survive between sessions.
+- **Handoffs**: When finishing a task that will continue in another session, write a handoff to `.localdev/workflow/handoffs/<task-name>.md` covering what was done, key decisions, what's next, and open questions. When resuming multi-session work, check `.localdev/workflow/handoffs/` FIRST before doing anything else. Delete the file once the feature is complete — it's scaffolding, not documentation.
+- **Agent blockers**: When you hit ambiguity you cannot resolve from code, docs, or git history — write the entry to `.localdev/workflow/blockers.md` (context, blocker, what you need, files involved) and ask the user. If resolved, remove the entry and continue. If not, halt that task. The file ensures blockers survive between sessions.
 - **Known issues**: When you discover a persistent platform or dependency constraint (not a task blocker, a fact of life), document it in `docs/KNOWN_ISSUES.md` with status, workaround, affected files, and reference. This is permanent project knowledge.
-- **Definition of Done**: Each task in `.claude/mytasks/todo.md` MUST include verifiable done criteria. "Implement X" is not done. "Implement X, verify Y, tests pass" is. If you can't check it, it's not done.
+- **Definition of Done**: Each task in `.localdev/workflow/todo.md` MUST include verifiable done criteria. "Implement X" is not done. "Implement X, verify Y, tests pass" is. If you can't check it, it's not done.
 
 ## Planning
 
 - Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions).
 - If something goes sideways, STOP and re-plan — don't keep pushing.
 - **2-strike rule**: After 2 failed approaches to the same problem, STOP. Do not try a 3rd. Dispatch an Auditor (reasoning model) to diagnose the root constraint, then re-plan from that constraint.
-- Write plans to `.claude/mytasks/todo.md` with checkable items + done criteria.
+- Write plans to `.localdev/workflow/todo.md` with checkable items + done criteria.
 - Check in with the user before starting implementation.
 - Track progress, mark items complete, give high-level summary at each step.
 
@@ -143,12 +145,12 @@ Rule of thumb: "Where is X in the code?" → finder. "How does library Y work?" 
 
 **Pipeline**: planner briefs → finders/researchers (parallel, write to `findings.md`) → builders (fast in parallel, smart serialized by file) → reviewer → planner approves.
 
-**Findings** (`.claude/mytasks/findings.md`): When Finders or Researchers discover something other agents need to know before acting, write it here. Builders read it before starting. Ephemeral — delete on session close. Difference from blockers: findings *inform*; blockers *halt until resolved*.
+**Findings** (`.localdev/workflow/findings.md`): When Finders or Researchers discover something other agents need to know before acting, write it here. Builders read it before starting. Ephemeral — delete on session close. Difference from blockers: findings *inform*; blockers *halt until resolved*.
 
 ## Slash Commands
 
 - `/agentic <task> [--tier=trivial|medium|full]` — explicit one-shot dispatch with tier control. *The main chat already auto-applies this pipeline under Orchestrator mode; use this command only to pin a specific tier or force-dispatch when the reflex rules would skip.*
-- `/init-agentic` — scaffold `.claude/mytasks/` + `docs/KNOWN_ISSUES.md` in the current project
+- `/init-agentic` — scaffold `.localdev/workflow/` + `docs/KNOWN_ISSUES.md` in the current project
 - `/handoff <task-name>` — write a cross-session handoff from current session context
 - `/blocker <summary>` — append a decision blocker in canonical format and halt
 - `/known-issue <summary>` — append to `docs/KNOWN_ISSUES.md`
@@ -172,7 +174,7 @@ Rules:
 
 Blockers and handoffs use fixed formats so hooks and slash commands can parse them reliably.
 
-### `.claude/mytasks/blockers.md`
+### `.localdev/workflow/blockers.md`
 
 ```
 # Active Blockers
@@ -186,7 +188,7 @@ Blockers and handoffs use fixed formats so hooks and slash commands can parse th
 
 The H2 header MUST start with `## ` followed by a 4-digit year. The SessionStart hook uses `grep -qE '^## [0-9]{4}-'` to detect active blockers; mismatched heading depth = silent false negative.
 
-### `.claude/mytasks/handoffs/<task-name>.md`
+### `.localdev/workflow/handoffs/<task-name>.md`
 
 ```
 # <task>
@@ -205,24 +207,24 @@ The H2 header MUST start with `## ` followed by a 4-digit year. The SessionStart
 - <path>
 ```
 
-### `.claude/mytasks/findings.md`
+### `.localdev/workflow/findings.md`
 
 Flat append log — no structural requirements. Ephemeral; delete on session close.
 
 ## SessionStart hook
 
-On every session start, the hook (installed in `~/.claude/settings.json`) scans the CWD for `.claude/mytasks/` and prints:
+On every session start, the hook (installed in `~/.claude/settings.json`) scans the CWD for `.localdev/workflow/` and prints:
 - Any `.md` files in `handoffs/` (resume context)
 - A warning if `blockers.md` contains unresolved entries
 
-Silent no-op if `.claude/mytasks/` does not exist in the project.
+Silent no-op if `.localdev/workflow/` does not exist in the project.
 
 ## File Layout
 
 ```
 project-root/
-├── .claude/                        # gitignored
-│   └── mytasks/
+├── .localdev/                      # add to .gitignore (not auto-ignored)
+│   └── workflow/
 │       ├── todo.md                 # tasks + done criteria
 │       ├── blockers.md             # unresolved ambiguity (halts work)
 │       ├── findings.md             # ephemeral intra-session discoveries
@@ -279,14 +281,14 @@ If these tools are already listed in your environment, the preload is a no-op.
 
 Before writing any brief:
 
-1. Read `.claude/mytasks/handoffs/` — if a handoff exists for this task, start from it.
-2. Read `.claude/mytasks/blockers.md` and `findings.md` — don't re-discover what's already known.
+1. Read `.localdev/workflow/handoffs/` — if a handoff exists for this task, start from it.
+2. Read `.localdev/workflow/blockers.md` and `findings.md` — don't re-discover what's already known.
 3. Read `docs/KNOWN_ISSUES.md` — check for platform or dependency constraints that affect this task.
 4. Verify unknowns via context7 or web search BEFORE dispatching. Agents looping on nonexistent commands waste cycles.
 
 # The brief
 
-Write the plan to `.claude/mytasks/todo.md`. Every task must include a verifiable **Definition of Done**:
+Write the plan to `.localdev/workflow/todo.md`. Every task must include a verifiable **Definition of Done**:
 
 - [ ] &lt;task&gt;
   **Done when**: &lt;checkable criteria — tests pass, screenshot matches, DoD command exits 0&gt;
@@ -312,7 +314,7 @@ When invoked via `/agentic <task> --tier=...`, respect the tier:
 # Escalation
 
 - If a problem survives **2 failed attempts**, STOP. Do NOT try a 3rd. Dispatch an **Auditor** to diagnose the root constraint and re-brief.
-- If YOU hit ambiguity you can't resolve from code/docs/git, write to `.claude/mytasks/blockers.md` and ask the user.
+- If YOU hit ambiguity you can't resolve from code/docs/git, write to `.localdev/workflow/blockers.md` and ask the user.
 
 # Closing a task
 
@@ -321,7 +323,7 @@ Approve only when:
 - Tester confirmed every DoD item
 - Changes are surgical (no scope creep)
 
-Mark complete in `todo.md`. If the task is pausing (session ending), write a handoff to `.claude/mytasks/handoffs/<task-name>.md`.
+Mark complete in `todo.md`. If the task is pausing (session ending), write a handoff to `.localdev/workflow/handoffs/<task-name>.md`.
 </file>
 
 <file path="~/.claude/agents/auditor.md">
@@ -336,13 +338,13 @@ You are the Auditor. You were dispatched because 2 prior attempts failed at the 
 
 # Process
 
-1. Read the original brief from `.claude/mytasks/todo.md` and the two failed attempts (diffs, logs, findings).
+1. Read the original brief from `.localdev/workflow/todo.md` and the two failed attempts (diffs, logs, findings).
 2. Check `docs/KNOWN_ISSUES.md` — is this a platform or dependency limit that was ignored?
 3. Verify assumptions the prior attempts made. At least one is wrong. Common culprits:
    - Library/API behavior assumed from training data — verify via context7 or docs.
    - Build/test environment differences not accounted for.
    - A `KNOWN_ISSUES.md` entry that contradicts the chosen approach.
-4. Write a new brief to `.claude/mytasks/todo.md` explaining:
+4. Write a new brief to `.localdev/workflow/todo.md` explaining:
    - What the real constraint is
    - Why the old approach was flawed
    - The new path forward, with updated DoD
@@ -351,7 +353,7 @@ You are the Auditor. You were dispatched because 2 prior attempts failed at the 
 # Rules
 
 - You do NOT write code. You think, diagnose, and re-brief.
-- If the root cause is user-scope (missing context, unclear requirements), write to `.claude/mytasks/blockers.md` and escalate to the user.
+- If the root cause is user-scope (missing context, unclear requirements), write to `.localdev/workflow/blockers.md` and escalate to the user.
 - If the root cause is a platform constraint worth documenting, also add an entry to `docs/KNOWN_ISSUES.md`.
 </file>
 
@@ -367,7 +369,7 @@ You are a Finder. You search the codebase and return targeted findings. Read-onl
 
 # Rules
 
-- NEVER write, edit, or create code files. The ONLY file you may write to is `.claude/mytasks/findings.md` (append) when something must be shared with other agents.
+- NEVER write, edit, or create code files. The ONLY file you may write to is `.localdev/workflow/findings.md` (append) when something must be shared with other agents.
 - Return concise results: `path:line — what's there` format. Short excerpts only — don't paste entire files.
 - Parallel-safe: expect to run alongside other Finders.
 
@@ -376,7 +378,7 @@ You are a Finder. You search the codebase and return targeted findings. Read-onl
 1. Parse the query narrowly.
 2. Run the minimum number of Grep/Glob/Read calls to answer it.
 3. Report findings in structured form (path:line — description).
-4. If the finding will affect other agents' work (e.g., "this module is mid-refactor"), append a note to `.claude/mytasks/findings.md`.
+4. If the finding will affect other agents' work (e.g., "this module is mid-refactor"), append a note to `.localdev/workflow/findings.md`.
 </file>
 
 <file path="~/.claude/agents/researcher.md">
@@ -393,7 +395,7 @@ You are a Researcher. You fetch external documentation and return summaries. Rea
 
 - **Prefer context7** (`mcp__plugin_context7_context7__*`) for library docs — faster and more current than raw web search. Training data may be stale.
 - **Prefer `ctx_fetch_and_index` + `ctx_search`** over raw WebFetch when a page is large — keeps raw HTML out of context.
-- If something must be shared with other agents, append to `.claude/mytasks/findings.md`.
+- If something must be shared with other agents, append to `.localdev/workflow/findings.md`.
 - Parallel-safe: expect to run alongside other Researchers.
 
 # When dispatched
@@ -422,10 +424,10 @@ You are a fast Builder. You take a clear, narrow brief and execute it.
 # Rules
 
 - Stick to the brief. Do NOT improve adjacent code. Do NOT refactor. Do NOT reformat.
-- If the brief is ambiguous, STOP and append to `.claude/mytasks/blockers.md`. Do not guess.
+- If the brief is ambiguous, STOP and append to `.localdev/workflow/blockers.md`. Do not guess.
 - Surgical: smallest diff that satisfies the brief.
 - Serialized by file: if you see another Builder's pending edits to a file you've been asked to touch, halt and report.
-- Read `.claude/mytasks/findings.md` and `docs/KNOWN_ISSUES.md` first if they exist.
+- Read `.localdev/workflow/findings.md` and `docs/KNOWN_ISSUES.md` first if they exist.
 
 # Output
 
@@ -448,7 +450,7 @@ You are the smart Builder. You handle complex implementation that a fast Builder
 
 # Pre-flight
 
-- Read `.claude/mytasks/findings.md` and `docs/KNOWN_ISSUES.md` before starting.
+- Read `.localdev/workflow/findings.md` and `docs/KNOWN_ISSUES.md` before starting.
 - Read the brief's Definition of Done. Your job is to meet it — not expand scope.
 - Read the files you'll modify in full. Understand WHY they look the way they do before changing.
 
@@ -512,7 +514,7 @@ You are a Tester. You verify that completed work meets its Definition of Done.
 
 # Process
 
-1. Read the task's DoD from `.claude/mytasks/todo.md`.
+1. Read the task's DoD from `.localdev/workflow/todo.md`.
 2. Run each DoD command the brief specifies (`yarn test`, `pytest`, `mypy`, lint, build, etc.).
 3. For UI changes: use browser automation tools if available; screenshot or verify visually.
 4. Read logs for errors — do NOT trust exit codes alone. A test suite can exit 0 while skipping critical tests.
@@ -548,10 +550,10 @@ Dispatch the `planner` subagent to handle `$ARGUMENTS`. This is the front door f
    - Never default to `full`. The user opts in.
 
 2. **Build the pre-warmed context block**. Read, if present:
-   - `.claude/mytasks/handoffs/*.md` — open handoffs
-   - `.claude/mytasks/blockers.md` — active blockers (canonical format, see `AGENTIC.md § Canonical entry formats`)
-   - `.claude/mytasks/findings.md` — current session findings
-   - `.claude/mytasks/todo.md` — current plan, if any
+   - `.localdev/workflow/handoffs/*.md` — open handoffs
+   - `.localdev/workflow/blockers.md` — active blockers (canonical format, see `AGENTIC.md § Canonical entry formats`)
+   - `.localdev/workflow/findings.md` — current session findings
+   - `.localdev/workflow/todo.md` — current plan, if any
    - `docs/KNOWN_ISSUES.md`
 
    Assemble a compact summary: per file, a count + first relevant line. Do not paste full bodies.
@@ -572,12 +574,12 @@ Dispatch the `planner` subagent to handle `$ARGUMENTS`. This is the front door f
 - `trivial` MUST NOT fall through to `medium` as a safety net. Skipping Reviewer is the point.
 - Ambiguous task (2+ plausible interpretations): dispatch the Planner at the inferred tier, but instruct it to ask a clarifying question BEFORE dispatching subordinates.
 - If the pre-warmed context surfaces an open handoff matching this task, fold it into the Planner's brief.
-- If `.claude/mytasks/` does not exist in the current project, run `/init-agentic` first, then retry.
+- If `.localdev/workflow/` does not exist in the current project, run `/init-agentic` first, then retry.
 </file>
 
 <file path="~/.claude/commands/init-agentic.md">
 ---
-description: Scaffold the Agentic Workflow Framework files for the current project (.claude/mytasks/ + docs/KNOWN_ISSUES.md)
+description: Scaffold the Agentic Workflow Framework files for the current project (.localdev/workflow/ + docs/KNOWN_ISSUES.md)
 ---
 
 Set up the Agentic Workflow Framework scaffolding in the CURRENT working directory.
@@ -589,15 +591,15 @@ Set up the Agentic Workflow Framework scaffolding in the CURRENT working directo
    - If it doesn't exist, create it with the template.
 
 2. **Create directory structure**:
-   - `.claude/mytasks/handoffs/` (directory)
-   - `.claude/mytasks/todo.md` — starter with `# Todo` heading, `## Tasks` section, and a comment explaining the DoD format.
-   - `.claude/mytasks/blockers.md` — starter with `# Active Blockers` heading and a comment explaining the entry format.
-   - `.claude/mytasks/findings.md` — starter with `# Findings` heading and a note that the file is ephemeral.
+   - `.localdev/workflow/handoffs/` (directory)
+   - `.localdev/workflow/todo.md` — starter with `# Todo` heading, `## Tasks` section, and a comment explaining the DoD format.
+   - `.localdev/workflow/blockers.md` — starter with `# Active Blockers` heading and a comment explaining the entry format.
+   - `.localdev/workflow/findings.md` — starter with `# Findings` heading and a note that the file is ephemeral.
    - `docs/KNOWN_ISSUES.md` — starter with `# Known Issues` heading and an entry-format comment.
 
 3. **Gitignore hygiene** — if the current directory is a git repo:
    - Run `git rev-parse --is-inside-work-tree` to confirm.
-   - Check if `.gitignore` already excludes `.claude/` or `.claude`. If not, append `.claude/` on its own line.
+   - Check if `.gitignore` already excludes `.localdev/` or `.localdev`. If not, append `.localdev/` on its own line (it is NOT auto-ignored, unlike the old `.claude/` convention).
    - Confirm `docs/KNOWN_ISSUES.md` is NOT gitignored (it should be committed).
 
 4. **Report** — print a structured summary: created paths, skipped paths (already present), gitignore status.
@@ -611,13 +613,13 @@ description: Write a cross-session handoff for the current task, so the next ses
 argument-hint: [task-name]
 ---
 
-Write a handoff file to `.claude/mytasks/handoffs/$ARGUMENTS.md` (where `$ARGUMENTS` is the task name).
+Write a handoff file to `.localdev/workflow/handoffs/$ARGUMENTS.md` (where `$ARGUMENTS` is the task name).
 
 If `$ARGUMENTS` is empty, ask the user for a task name first — use a short kebab-case slug (e.g., `notification-grouping`, `calendar-sync-fix`).
 
 # Steps
 
-1. Ensure `.claude/mytasks/handoffs/` exists — if not, create it.
+1. Ensure `.localdev/workflow/handoffs/` exists — if not, create it.
 2. If the handoff file already exists, ask the user whether to overwrite, append, or abort.
 3. Write (or update) the file with a template covering: What was done, Key decisions, What's next (checkboxes), Open questions, Files touched. Fill in from the CURRENT session's context.
 
@@ -631,11 +633,11 @@ If `$ARGUMENTS` is empty, ask the user for a task name first — use a short keb
 
 <file path="~/.claude/commands/blocker.md">
 ---
-description: Append a decision blocker to .claude/mytasks/blockers.md in canonical format and halt the current task until the user resolves it
+description: Append a decision blocker to .localdev/workflow/blockers.md in canonical format and halt the current task until the user resolves it
 argument-hint: [short-summary]
 ---
 
-Append a new decision blocker to `.claude/mytasks/blockers.md`, then STOP and ask the user.
+Append a new decision blocker to `.localdev/workflow/blockers.md`, then STOP and ask the user.
 
 # Canonical entry format
 
@@ -651,7 +653,7 @@ Every blocker entry starts with an H2 date-stamp header. The SessionStart hook m
 
 # Steps
 
-1. If `.claude/mytasks/blockers.md` does not exist, create it with a `# Active Blockers` header.
+1. If `.localdev/workflow/blockers.md` does not exist, create it with a `# Active Blockers` header.
 2. Append a new entry in the canonical format above. Use today's date and current time. Fill every field from the CURRENT session — do NOT fabricate. If a field is unknown, write `<unknown>`.
 3. After writing, STOP working on the current task. Present the blocker to the user and ask for a decision.
 4. When the user resolves it:
@@ -728,6 +730,23 @@ fi
 </step>
 
 <step n="4">
+Copy skills to `~/.claude/skills/`:
+
+Ensure the directory exists:
+```
+mkdir -p ~/.claude/skills
+```
+
+Copy the skills subdirectories from this repository's `skills/` folder:
+```
+cp -r skills/agentic-workflow ~/.claude/skills/
+cp -r skills/personal-engineering-rules ~/.claude/skills/
+```
+
+These skills are loaded dynamically by Claude Code and provide task-oriented guidance (e.g., `/gitnexus-exploring`, code graph queries) and personal engineering best practices.
+</step>
+
+<step n="5">
 Make the orchestrator hook executable:
 
 ```
@@ -735,7 +754,7 @@ chmod +x ~/.claude/hooks/orchestrator.sh
 ```
 </step>
 
-<step n="5">
+<step n="6">
 Update `~/.claude/CLAUDE.md`:
 
 1. Back it up first: `cp ~/.claude/CLAUDE.md ~/.claude/CLAUDE.md.bak-v3-<timestamp>` (where `<timestamp>` is the current Unix timestamp or ISO datetime, e.g. `20260416T140000`). If the file does not exist, skip the backup.
@@ -743,8 +762,25 @@ Update `~/.claude/CLAUDE.md`:
 3. If it exists, check whether it already contains the line `@AGENTIC.md` (exact line match). If not, append `@AGENTIC.md` on its own line at the end of the file. Leave all other content intact.
 </step>
 
-<step n="6">
-Patch `~/.claude/settings.json`:
+<step n="7">
+Grant and migrate permission globs in `~/.claude/settings.json`:
+
+In addition to the hook entries (step 7 below), this step ensures that the framework permission globs are granted and any legacy `.claude/mytasks/**` globs are migrated away.
+
+1. Back up the file first: `cp ~/.claude/settings.json ~/.claude/settings.json.bak-perms-<timestamp>` (if it exists).
+2. Read the file. If it does not exist, start with `{}`.
+3. Parse as JSON and ensure these Write/Edit permission globs are present under `permissions` (or equivalent location, depending on Claude Code version):
+   - `Write(.localdev/workflow/**)`
+   - `Edit(.localdev/workflow/**)`
+   - `Write(docs/KNOWN_ISSUES.md)`
+   - `Edit(docs/KNOWN_ISSUES.md)`
+4. If any old `.claude/mytasks/**` permission globs exist, remove them (this repo migrated to `.localdev/workflow/`).
+5. Write the updated JSON back. Ensure it remains valid JSON.
+
+This grants the framework pre-approval to write session files without prompting, and removes stale permissions from previous installations.
+
+<step n="8">
+Patch `~/.claude/settings.json` hook entries:
 
 1. Back it up first: `cp ~/.claude/settings.json ~/.claude/settings.json.bak-v3-<timestamp>`. If the file does not exist, skip the backup — you will create it from scratch.
 2. Read the file. If it does not exist or is empty, start with `{}`.
@@ -758,7 +794,7 @@ Patch `~/.claude/settings.json`:
   "hooks": [
     {
       "type": "command",
-      "command": "if [ -d .claude/mytasks ]; then found=0; if grep -qE '^## [0-9]{4}-' .claude/mytasks/blockers.md 2>/dev/null; then echo '⚠️  Active blockers: .claude/mytasks/blockers.md'; found=1; fi; for f in .claude/mytasks/handoffs/*.md; do [ -e \"$f\" ] && { echo \"📋 Open handoff: $f\"; found=1; }; done; if [ \"$found\" -eq 0 ]; then echo '✓ agentic: armed'; fi; fi"
+      "command": "if [ -d .localdev/workflow ]; then found=0; if grep -qE '^## [0-9]{4}-' .localdev/workflow/blockers.md 2>/dev/null; then echo '⚠️  Active blockers: .localdev/workflow/blockers.md'; found=1; fi; for f in .localdev/workflow/handoffs/*.md; do [ -e \"$f\" ] && { echo \"📋 Open handoff: $f\"; found=1; }; done; if [ \"$found\" -eq 0 ]; then echo '✓ agentic: armed'; fi; fi"
     }
   ]
 }
@@ -781,11 +817,11 @@ Patch `~/.claude/settings.json`:
 7. Write the updated JSON back to `~/.claude/settings.json`. Ensure it is valid JSON (pretty-printed or compact, either is fine).
 </step>
 
-<step n="7">
+<step n="9">
 Verify the installation. For each check below, report PASS or FAIL with a brief reason.
 
-**Check 1 — 15 files exist on disk.**
-Verify each of these paths exists:
+**Check 1 — Core framework files + skills exist on disk.**
+Verify each of these core paths exists:
 - `~/.claude/AGENTIC.md`
 - `~/.claude/agents/planner.md`
 - `~/.claude/agents/auditor.md`
@@ -801,6 +837,10 @@ Verify each of these paths exists:
 - `~/.claude/commands/blocker.md`
 - `~/.claude/commands/known-issue.md`
 - `~/.claude/hooks/orchestrator.sh`
+
+Verify skills are installed:
+- `~/.claude/skills/agentic-workflow/` (directory exists)
+- `~/.claude/skills/personal-engineering-rules/` (directory exists)
 
 **Check 2 — Hook is executable.**
 `test -x ~/.claude/hooks/orchestrator.sh` exits 0.
@@ -822,34 +862,44 @@ Expected: stdout starts with `orchestrator:`.
 
 **Check 6 — SessionStart hook behaves correctly in three states.**
 
-State A — no `.claude/mytasks/` in CWD:
+State A — no `.localdev/workflow/` in CWD:
 ```bash
-cd /tmp && bash -c 'if [ -d .claude/mytasks ]; then found=0; if grep -qE '"'"'^## [0-9]{4}-'"'"' .claude/mytasks/blockers.md 2>/dev/null; then echo "⚠️  Active blockers: .claude/mytasks/blockers.md"; found=1; fi; for f in .claude/mytasks/handoffs/*.md; do [ -e "$f" ] && { echo "📋 Open handoff: $f"; found=1; }; done; if [ "$found" -eq 0 ]; then echo "✓ agentic: armed"; fi; fi'
+cd /tmp && bash -c 'if [ -d .localdev/workflow ]; then found=0; if grep -qE '"'"'^## [0-9]{4}-'"'"' .localdev/workflow/blockers.md 2>/dev/null; then echo "⚠️  Active blockers: .localdev/workflow/blockers.md"; found=1; fi; for f in .localdev/workflow/handoffs/*.md; do [ -e "$f" ] && { echo "📋 Open handoff: $f"; found=1; }; done; if [ "$found" -eq 0 ]; then echo "✓ agentic: armed"; fi; fi'
 ```
 Expected: empty stdout.
 
-State B — `.claude/mytasks/` exists, blockers.md is empty:
+State B — `.localdev/workflow/` exists, blockers.md is empty:
 ```bash
-mkdir -p /tmp/agentic-test/.claude/mytasks/handoffs
-cd /tmp/agentic-test && bash -c 'if [ -d .claude/mytasks ]; then found=0; if grep -qE '"'"'^## [0-9]{4}-'"'"' .claude/mytasks/blockers.md 2>/dev/null; then echo "⚠️  Active blockers: .claude/mytasks/blockers.md"; found=1; fi; for f in .claude/mytasks/handoffs/*.md; do [ -e "$f" ] && { echo "📋 Open handoff: $f"; found=1; }; done; if [ "$found" -eq 0 ]; then echo "✓ agentic: armed"; fi; fi'
+mkdir -p /tmp/agentic-test/.localdev/workflow/handoffs
+cd /tmp/agentic-test && bash -c 'if [ -d .localdev/workflow ]; then found=0; if grep -qE '"'"'^## [0-9]{4}-'"'"' .localdev/workflow/blockers.md 2>/dev/null; then echo "⚠️  Active blockers: .localdev/workflow/blockers.md"; found=1; fi; for f in .localdev/workflow/handoffs/*.md; do [ -e "$f" ] && { echo "📋 Open handoff: $f"; found=1; }; done; if [ "$found" -eq 0 ]; then echo "✓ agentic: armed"; fi; fi'
 ```
 Expected: stdout is `✓ agentic: armed`.
 
 State C — blockers.md contains a valid entry header:
 ```bash
-echo '## 2026-04-16 14:00 — test' > /tmp/agentic-test/.claude/mytasks/blockers.md
-cd /tmp/agentic-test && bash -c 'if [ -d .claude/mytasks ]; then found=0; if grep -qE '"'"'^## [0-9]{4}-'"'"' .claude/mytasks/blockers.md 2>/dev/null; then echo "⚠️  Active blockers: .claude/mytasks/blockers.md"; found=1; fi; for f in .claude/mytasks/handoffs/*.md; do [ -e "$f" ] && { echo "📋 Open handoff: $f"; found=1; }; done; if [ "$found" -eq 0 ]; then echo "✓ agentic: armed"; fi; fi'
+echo '## 2026-04-16 14:00 — test' > /tmp/agentic-test/.localdev/workflow/blockers.md
+cd /tmp/agentic-test && bash -c 'if [ -d .localdev/workflow ]; then found=0; if grep -qE '"'"'^## [0-9]{4}-'"'"' .localdev/workflow/blockers.md 2>/dev/null; then echo "⚠️  Active blockers: .localdev/workflow/blockers.md"; found=1; fi; for f in .localdev/workflow/handoffs/*.md; do [ -e "$f" ] && { echo "📋 Open handoff: $f"; found=1; }; done; if [ "$found" -eq 0 ]; then echo "✓ agentic: armed"; fi; fi'
 ```
 Expected: stdout contains `Active blockers`.
 
 Clean up: `rm -rf /tmp/agentic-test`.
 </step>
 
-<step n="8">
+<step n="10">
 Report a final installation summary to the user:
 
-**Files created (15):**
-List all 15 paths.
+**Core framework files created:**
+List the 15 core file paths (spec, agents, commands, hooks).
+
+**Skills installed:**
+- `~/.claude/skills/agentic-workflow/`
+- `~/.claude/skills/personal-engineering-rules/`
+
+**Permission globs granted:**
+- `Write(.localdev/workflow/**)`
+- `Edit(.localdev/workflow/**)`
+- `Write(docs/KNOWN_ISSUES.md)`
+- `Edit(docs/KNOWN_ISSUES.md)`
 
 **Hook entries added:**
 - `hooks.SessionStart` — blocker/handoff scanner (skipped if already present)

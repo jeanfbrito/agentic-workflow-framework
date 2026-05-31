@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # uninstall.sh -- Agentic Workflow Framework global uninstaller
-# Removes the 15 framework files from ~/.claude/ and strips hook/import entries.
-# Does NOT remove ~/.claude/agents/, ~/.claude/commands/, or ~/.claude/hooks/
-# directories -- they may contain non-framework files.
+# Removes the 15 framework files + skills/ dirs from ~/.claude/ and strips
+# hook/import entries and framework permission globs from settings.json.
+# Does NOT remove ~/.claude/agents/, ~/.claude/commands/, ~/.claude/hooks/,
+# or ~/.claude/skills/ directories -- they may contain non-framework files.
 
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ---------------------------------------------------------------------------
 # 1. Confirmation
@@ -60,6 +63,32 @@ remove_file ~/.claude/commands/handoff.md
 remove_file ~/.claude/commands/blocker.md
 remove_file ~/.claude/commands/known-issue.md
 remove_file ~/.claude/hooks/orchestrator.sh
+
+# ---------------------------------------------------------------------------
+# 2b. Remove framework skill dirs
+#     Derive names from repo skills/*/ when available; fall back to known two.
+# ---------------------------------------------------------------------------
+
+REMOVED_SKILLS=()
+
+if [ -d "$SCRIPT_DIR/skills" ]; then
+  for skill_src in "$SCRIPT_DIR/skills"/*/; do
+    [ -d "$skill_src" ] || continue
+    skill_name="$(basename "$skill_src")"
+    if [ -d ~/.claude/skills/"$skill_name" ]; then
+      rm -rf ~/.claude/skills/"$skill_name"
+      REMOVED_SKILLS+=("$skill_name")
+    fi
+  done
+else
+  # Fallback: remove the two known skill dirs
+  for skill_name in agentic-workflow personal-engineering-rules; do
+    if [ -d ~/.claude/skills/"$skill_name" ]; then
+      rm -rf ~/.claude/skills/"$skill_name"
+      REMOVED_SKILLS+=("$skill_name")
+    fi
+  done
+fi
 
 # ---------------------------------------------------------------------------
 # 3. Strip @AGENTIC.md from CLAUDE.md
@@ -119,7 +148,7 @@ if [ -f "$SETTINGS_JSON" ] && [ -s "$SETTINGS_JSON" ]; then
     rm "$SETTINGS_NAMED_BACKUP"
     SETTINGS_ACTION="restored from named backup and removed $SETTINGS_NAMED_BACKUP"
   else
-    # No named backup -- fall back to stripping the hook entries
+    # No named backup -- fall back to stripping the hook entries and framework perms
     python3 - "$SETTINGS_JSON" <<'PYEOF'
 import json, sys
 path = sys.argv[1]
@@ -150,12 +179,34 @@ if "UserPromptSubmit" in hooks:
     else:
         print("UP_NOT_FOUND")
 
+# Strip framework permission globs (both current .localdev/workflow and
+# stale .claude/mytasks variants) from permissions.allow
+FRAMEWORK_GLOBS = {
+    "Write(.localdev/workflow/**)",
+    "Edit(.localdev/workflow/**)",
+    "Write(.localdev/workflow/handoffs/**)",
+    "Edit(.localdev/workflow/handoffs/**)",
+    "Write(docs/KNOWN_ISSUES.md)",
+    "Edit(docs/KNOWN_ISSUES.md)",
+}
+allow = data.get("permissions", {}).get("allow", [])
+before_perms = len(allow)
+allow = [g for g in allow
+         if g not in FRAMEWORK_GLOBS and '.claude/mytasks' not in g]
+perms_removed = before_perms - len(allow)
+if perms_removed > 0:
+    data.setdefault("permissions", {})["allow"] = allow
+    changed = True
+    print(f"REMOVED_PERMS:{perms_removed}")
+else:
+    print("PERMS_NOT_FOUND")
+
 if changed:
     data["hooks"] = hooks
     with open(path, 'w') as fh:
         json.dump(data, fh, indent=2)
 PYEOF
-    SETTINGS_ACTION="stripped hook entries (no named backup found)"
+    SETTINGS_ACTION="stripped hook entries and framework permission globs (no named backup found)"
   fi
 else
   SETTINGS_ACTION="settings.json not found or empty -- nothing to do"
@@ -183,8 +234,19 @@ if [ "${#SKIPPED[@]}" -gt 0 ]; then
 fi
 
 echo ""
+if [ "${#REMOVED_SKILLS[@]}" -gt 0 ]; then
+  echo "Skills removed (${#REMOVED_SKILLS[@]}):"
+  for s in "${REMOVED_SKILLS[@]}"; do
+    echo "  ~/.claude/skills/$s"
+  done
+else
+  echo "Skills: none found to remove"
+fi
+
+echo ""
 echo "CLAUDE.md: $CLAUDE_MD_ACTION"
 echo "settings.json: $SETTINGS_ACTION"
 echo ""
 echo "Uninstall complete. Directories ~/.claude/agents/, ~/.claude/commands/,"
-echo "and ~/.claude/hooks/ were not removed (may contain non-framework files)."
+echo "~/.claude/hooks/, and ~/.claude/skills/ were not removed (may contain"
+echo "non-framework files)."
