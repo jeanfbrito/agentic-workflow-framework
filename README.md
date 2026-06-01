@@ -7,7 +7,7 @@ Lightweight multi-agent orchestration conventions for Claude Code.
 ## What this installs
 
 - **1 spec document** (`~/.claude/AGENTIC.md`) -- the full framework spec imported into every session via `CLAUDE.md`
-- **8 subagent definitions** in `~/.claude/agents/`: planner, auditor, reviewer, builder-smart, builder-fast, finder, researcher, tester
+- **10 subagent definitions** in `~/.claude/agents/`: planner, auditor, reviewer, builder-smart, builder-fast, builder-trivial, finder, researcher, tester, watcher
 - **5 slash commands** in `~/.claude/commands/`: `/agentic`, `/init-agentic`, `/handoff`, `/blocker`, `/known-issue`
 - **1 reinforcement hook** (`~/.claude/hooks/orchestrator.sh`) -- fires on UserPromptSubmit to prevent Orchestrator drift
 - **2 `settings.json` hook entries** -- SessionStart (blocker/handoff scanner) + UserPromptSubmit (orchestrator reinforcement)
@@ -67,9 +67,9 @@ Removes the framework files, installed skills, and permission globs. Strips the 
 
 ## Model mapping
 
-- **Opus** (reasoning model) -- Planner and Auditor: deep deliberation, architectural decisions, never writes code directly.
-- **Sonnet** (smart model) -- Reviewer and builder-smart: capable implementation and quality-gate judgment.
-- **Haiku** (fast model) -- Finder, Researcher, builder-fast, and Tester: speed/cost-optimized mechanical tasks, run many in parallel.
+- **Opus** (reasoning model) -- Planner, Auditor, and builder-smart: deep deliberation, architectural decisions, and complex implementation a fast builder would botch.
+- **Sonnet** (smart model) -- Reviewer and builder-fast: quality-gate judgment and single scoped edits.
+- **Haiku** (fast model) -- builder-trivial, Finder, Researcher, Tester, and Watcher: speed/cost-optimized mechanical tasks, run many in parallel.
 
 ---
 

@@ -73,9 +73,11 @@ install_file "$SCRIPT_DIR/agents/auditor.md"             ~/.claude/agents/audito
 install_file "$SCRIPT_DIR/agents/reviewer.md"            ~/.claude/agents/reviewer.md
 install_file "$SCRIPT_DIR/agents/builder-smart.md"       ~/.claude/agents/builder-smart.md
 install_file "$SCRIPT_DIR/agents/builder-fast.md"        ~/.claude/agents/builder-fast.md
+install_file "$SCRIPT_DIR/agents/builder-trivial.md"     ~/.claude/agents/builder-trivial.md
 install_file "$SCRIPT_DIR/agents/finder.md"              ~/.claude/agents/finder.md
 install_file "$SCRIPT_DIR/agents/researcher.md"          ~/.claude/agents/researcher.md
 install_file "$SCRIPT_DIR/agents/tester.md"              ~/.claude/agents/tester.md
+install_file "$SCRIPT_DIR/agents/watcher.md"            ~/.claude/agents/watcher.md
 
 install_file "$SCRIPT_DIR/commands/agentic.md"           ~/.claude/commands/agentic.md
 install_file "$SCRIPT_DIR/commands/init-agentic.md"      ~/.claude/commands/init-agentic.md

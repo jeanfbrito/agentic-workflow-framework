@@ -29,7 +29,7 @@ Dispatch the `planner` subagent to handle `$ARGUMENTS`. This is the front door f
    - Tier — resolved tier.
    - Context block — the pre-warmed summary.
    - Pipeline rule per tier:
-     - `trivial` → Planner writes a 1–2 line brief, delegates to ONE `builder-fast`. **Skip Finders, Researchers, Reviewer, Tester.**
+     - `trivial` → Planner writes a 1–2 line brief, delegates to ONE `builder-trivial` (same edit across 5+ sites) or `builder-fast` (a single scoped edit). **Skip Finders, Researchers, Reviewer, Tester.**
      - `medium` → Planner → Finders/Researchers (parallel) → Builders. **Skip Reviewer, Tester.**
      - `full` → Full pipeline — Finders/Researchers → Builders → Reviewer → Tester → Planner approves.
 

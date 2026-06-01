@@ -54,9 +54,11 @@ remove_file ~/.claude/agents/auditor.md
 remove_file ~/.claude/agents/reviewer.md
 remove_file ~/.claude/agents/builder-smart.md
 remove_file ~/.claude/agents/builder-fast.md
+remove_file ~/.claude/agents/builder-trivial.md
 remove_file ~/.claude/agents/finder.md
 remove_file ~/.claude/agents/researcher.md
 remove_file ~/.claude/agents/tester.md
+remove_file ~/.claude/agents/watcher.md
 remove_file ~/.claude/commands/agentic.md
 remove_file ~/.claude/commands/init-agentic.md
 remove_file ~/.claude/commands/handoff.md

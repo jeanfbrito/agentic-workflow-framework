@@ -1,6 +1,6 @@
 ---
 name: "agentic-workflow"
-description: "Use automatically for non-trivial engineering work: multi-step tasks, changes across 2+ files, risky or cross-cutting refactors, debugging with unknown root cause, multi-session work, structured task ledgers, blockers, handoffs, known issues, and verification planning. Drives Orchestrator dispatch-by-default with planner/finder/researcher/builder/reviewer/tester/auditor subagents."
+description: "Use automatically for non-trivial engineering work: multi-step tasks, changes across 2+ files, risky or cross-cutting refactors, debugging with unknown root cause, multi-session work, structured task ledgers, blockers, handoffs, known issues, and verification planning. Drives Orchestrator dispatch-by-default with planner/finder/researcher/builder/reviewer/tester/auditor/watcher subagents."
 ---
 
 # Agentic Workflow
@@ -22,14 +22,16 @@ brain stays orchestrating.
 
 ### Reflex rules — default to dispatch
 
-1. Task touches 2+ files, or complex logic in 1 file → dispatch `builder-fast`
-   or `builder-smart`. Do not Edit yourself.
+1. Task touches 2+ files, or complex logic in 1 file → dispatch `builder-trivial`,
+   `builder-fast`, or `builder-smart`. Do not Edit yourself.
 2. Search spanning >5 files, or tracing call chains → dispatch `finder`. Do not
    Grep yourself.
 3. Library docs, API references, CLI behavior → dispatch `researcher`. Do not
    WebFetch yourself.
 4. Running tests, validating DoD, checking logs → dispatch `tester`.
-5. Multi-step work (3+ steps) → apply the pipeline at the inferred tier
+5. Running a server, slow build, or long noisy process → dispatch `watcher`
+   (haiku). Keeps high-volume output out of the orchestrator's context.
+6. Multi-step work (3+ steps) → apply the pipeline at the inferred tier
    automatically.
 
 ### Exceptions — do it yourself
@@ -64,7 +66,7 @@ coordination, handoffs, blockers, or durable known issues, scaffold them first
 
 ## Subagent Roles
 
-Eight roles, mapped to model tiers (fast / smart / reasoning):
+Ten roles, mapped to model tiers (fast / smart / reasoning):
 
 - **planner** [reasoning]: Opens every non-trivial task with a clear brief.
   Closes with final approval after Reviewer pre-screens. Never writes code.
@@ -72,22 +74,28 @@ Eight roles, mapped to model tiers (fast / smart / reasoning):
   Diagnoses the root constraint and re-briefs the team. Thinks, doesn't code.
 - **reviewer** [smart]: First-pass quality gate after Builders. Patches small
   problems, escalates solid work to Planner.
-- **builder-smart** [smart]: Complex implementation — core logic, algorithms,
+- **builder-smart** [reasoning]: Complex implementation — core logic, algorithms,
   non-trivial code. Serialized by file.
-- **builder-fast** [fast]: Simple, well-defined tasks — boilerplate, renames,
-  stubs. Parallel where non-overlapping.
+- **builder-fast** [smart]: A single scoped edit — one rename, stub, or config
+  tweak that must be assembled, not just repeated across files.
+- **builder-trivial** [fast]: The SAME edit repeated across 5+ sites (5+
+  files/entries) — mass renames, bulk i18n/config, stub generation. One
+  fully-specified transform, zero per-site decisions; run many in parallel.
 - **finder** [fast]: Codebase search — files, call chains, patterns. Read-only,
   parallel-safe.
 - **researcher** [fast]: External docs, API references, library behavior.
   Read-only, parallel-safe.
 - **tester** [fast]: Runs tests, checks logs, validates done criteria.
   Read-only, parallel-safe.
+- **watcher** [fast]: Runs slow/long/noisy processes (servers, builds, test
+  suites, deploys, log streams) and returns only a tight digest; context firewall
+  that keeps high-volume output out of the orchestrator.
 
 Rule of thumb: "Where is X in the code?" → finder. "How does library Y work?" →
 researcher.
 
 **Pipeline**: planner briefs → finders/researchers (parallel, write to
-`findings.md`) → builders (fast in parallel, smart serialized by file) →
+`findings.md`) → builders (trivial/fast in parallel, smart serialized by file) →
 reviewer → planner approves.
 
 ## Tier Semantics
@@ -96,7 +104,7 @@ Tier controls pipeline depth and therefore cost. Default is `medium`.
 
 | Tier | Pipeline | When |
 | --- | --- | --- |
-| `trivial` | Planner brief → one `builder-fast` → done | Rename, typo, config tweak, single-line fix, doc edit |
+| `trivial` | Planner brief → one `builder-trivial` (same edit across 5+ sites) or `builder-fast` (a single scoped edit) → done | Rename, typo, config tweak, single-line fix, doc edit |
 | `medium` *(default)* | Planner → Finders/Researchers (parallel) → Builders. **Skips Reviewer + Tester.** | Small feature, scoped refactor, bug fix with tests |
 | `full` | Full pipeline — Finders → Builders → Reviewer → Tester → Planner approves | Cross-cutting change, schema/migration, security-adjacent, high-stakes refactor |
 

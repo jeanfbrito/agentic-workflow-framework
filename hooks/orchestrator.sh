@@ -43,5 +43,5 @@ done
 # Match work verbs (case-insensitive, with explicit non-alpha boundaries for
 # portability across BSD and GNU grep). Single fork.
 if printf '%s' "$prompt" | grep -Eiq '(^|[^a-zA-Z])(fix|implement|refactor|create|update|rename|migrate|build|patch|port|deploy|install|generate|rework|wire|scaffold|bootstrap|integrate|modify|rewrite|extend)[a-zA-Z]*([^a-zA-Z]|$)'; then
-  echo "orchestrator: delegate implementation to subagents (builder-fast/builder-smart, finder, researcher, tester); edit files yourself only for trivial one-liners or files already in context. See AGENTIC.md § Operating Mode."
+  echo "orchestrator: delegate implementation to subagents (builder-trivial/builder-fast/builder-smart, finder, researcher, tester, watcher); edit files yourself only for trivial one-liners or files already in context. See AGENTIC.md § Operating Mode."
 fi

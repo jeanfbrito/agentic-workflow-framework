@@ -34,9 +34,11 @@ FILES=(
   ~/.claude/agents/finder.md
   ~/.claude/agents/researcher.md
   ~/.claude/agents/builder-fast.md
+  ~/.claude/agents/builder-trivial.md
   ~/.claude/agents/builder-smart.md
   ~/.claude/agents/reviewer.md
   ~/.claude/agents/tester.md
+  ~/.claude/agents/watcher.md
   ~/.claude/commands/agentic.md
   ~/.claude/commands/init-agentic.md
   ~/.claude/commands/handoff.md
@@ -129,13 +131,13 @@ else
   check ".claude-plugin/plugin.json exists and is valid JSON" "$FAIL"
 fi
 
-# 7b -- all 8 agent files exist
-AGENTS=(planner auditor reviewer builder-smart builder-fast finder researcher tester)
+# 7b -- all 10 agent files exist
+AGENTS=(planner auditor reviewer builder-smart builder-fast builder-trivial finder researcher tester watcher)
 MISSING_AGENTS=0
 for a in "${AGENTS[@]}"; do
   [ -f "$SCRIPT_DIR/agents/$a.md" ] || { MISSING_AGENTS=1; break; }
 done
-check "all 8 agent files exist in agents/" "$MISSING_AGENTS"
+check "all 10 agent files exist in agents/" "$MISSING_AGENTS"
 
 # 7c -- all 5 command files exist
 COMMANDS=(agentic init-agentic handoff blocker known-issue)

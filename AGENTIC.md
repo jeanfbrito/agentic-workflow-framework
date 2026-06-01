@@ -8,10 +8,11 @@ In the main chat, act as the **Orchestrator** by default, regardless of the mode
 
 ### Reflex rules — default to dispatch
 
-1. Task touches 2+ files, or complex logic in 1 file → dispatch `builder-fast` or `builder-smart`. Do not Edit yourself.
+1. Task touches 2+ files, or complex logic in 1 file → dispatch `builder-fast` or `builder-smart`. Do not Edit yourself. The SAME edit repeated across 5+ sites (mass renames, bulk i18n/config) → dispatch `builder-trivial`; a single scoped edit → `builder-fast`.
 2. Search spanning >5 files, or tracing call chains → dispatch `finder`. Do not Grep yourself.
 3. Library docs, API references, CLI behavior → dispatch `researcher`. Do not WebFetch yourself.
 4. Running tests, validating DoD, checking logs → dispatch `tester`.
+4b. Running a server, a slow build, a deploy, or any long-running / high-volume-output process → dispatch `watcher` (haiku); it absorbs the output and returns a digest. NEVER run these in your own Bash — it floods your context.
 5. Multi-step work (3+ steps) → apply the `/agentic` pipeline at the inferred tier automatically. No manual `/agentic` invocation needed.
 
 ### Exceptions — do it yourself
@@ -89,6 +90,7 @@ Exploration order for any non-trivial task:
 - Never mark a task complete without proving it works.
 - Run tests, check logs, demonstrate correctness.
 - For UI changes: use screenshots/browser automation to verify rendering.
+- Long or noisy verification runs (test suites, builds, server smoke-boots) go through `watcher` so that output stays out of the orchestrator context.
 - Ask yourself: "Would a senior engineer approve this?"
 - Don't push validation work to the user.
 
@@ -103,15 +105,17 @@ Roles (installed as subagents in `~/.claude/agents/`):
 - **planner** [reasoning]: Opens every non-trivial task with a clear brief. Closes with final approval after Reviewer pre-screens. Never writes code directly.
 - **auditor** [reasoning]: On demand only — dispatched after 2 failed attempts. Diagnoses root constraint, redesigns approach, re-briefs the team. Called to think, not to code.
 - **reviewer** [smart]: First-pass quality gate after Builders. Catches issues, patches small problems. Only escalates solid work to Planner.
-- **builder-smart** [smart]: Complex implementation — core logic, algorithms, non-trivial code. Serialized by file.
-- **builder-fast** [fast]: Simple, well-defined tasks — boilerplate, renames, stubs. Parallel where non-overlapping.
+- **builder-smart** [reasoning, opus]: Complex implementation — core logic, algorithms, non-trivial code. Serialized by file. Runs Opus for max capability; costlier and slower, so reserve for work a fast Builder would botch.
+- **builder-fast** [smart, sonnet]: A single scoped edit — one rename, stub, or config tweak that must be assembled, not just repeated. Use for one small thing, not the same edit across files.
+- **builder-trivial** [fast, haiku]: The SAME edit repeated across 5+ sites (5+ files/entries) — mass renames, bulk i18n/config, stub generation. One fully-specified transform, zero per-site decisions; run many in parallel. Cheapest tier — pick it only when the task is "apply X to N places".
 - **finder** [fast]: Codebase search — files, call chains, patterns. Read-only. Parallel-safe.
 - **researcher** [fast]: External docs, API references, library behavior. Read-only. Parallel-safe.
 - **tester** [fast]: Runs tests, checks logs, validates done criteria. Read-only. Parallel-safe.
+- **watcher** [fast, haiku]: Runs slow / long-running / noisy processes (servers, builds, test suites, deploys, log streams) and returns only a tight digest — a one-line verdict plus verbatim errors on failure. Context firewall: keeps high-volume output out of the orchestrator. One-shot — can smoke-boot and log-sample a server, but cannot hold one alive across dispatches.
 
 Rule of thumb: "Where is X in the code?" → finder. "How does library Y work?" → researcher.
 
-**Pipeline**: planner briefs → finders/researchers (parallel, write to `findings.md`) → builders (fast in parallel, smart serialized by file) → reviewer → planner approves.
+**Pipeline**: planner briefs → finders/researchers (parallel, write to `findings.md`) → builders (trivial/fast in parallel, smart serialized by file) → reviewer → planner approves. `watcher` sits outside this line as an ad-hoc context firewall — dispatch it at any stage to run a server, build, or test suite without flooding the orchestrator.
 
 **Findings** (`.localdev/workflow/findings.md`): When Finders or Researchers discover something other agents need to know before acting, write it here. Builders read it before starting. Ephemeral — delete on session close. Difference from blockers: findings *inform*; blockers *halt until resolved*.
 
@@ -129,13 +133,14 @@ Rule of thumb: "Where is X in the code?" → finder. "How does library Y work?" 
 
 | Tier | Pipeline | When to use |
 |---|---|---|
-| `trivial` | Planner brief → one `builder-fast` → done | Rename, typo, config tweak, single-line fix, doc edit |
+| `trivial` | Planner brief → `builder-trivial` (or one `builder-fast`) → done | Mass rename, bulk i18n/config entries, stub generation; single-line fix, typo, config tweak, doc edit |
 | `medium` *(default)* | Planner → Finders/Researchers (parallel) → Builders. **Skips Reviewer + Tester.** | Small feature, scoped refactor, bug fix with tests |
 | `full` | Full pipeline — Finders → Builders → Reviewer → Tester → Planner approves | Cross-cutting change, schema/migration, security-adjacent, high-stakes refactor |
 
 Rules:
 - Never run `full` as a default — the user opts in for genuinely risky work.
 - `trivial` must NOT fall through to `medium` as a safety net; skipping Reviewer is the point.
+- Within `trivial`: use `builder-trivial` for pure mechanical/bulk work (mass renames, bulk i18n/config entries, stub generation); fall back to `builder-fast` when the single task still needs light judgment.
 - Ambiguous task → dispatch Planner at inferred tier, but instruct it to ask a clarifying question BEFORE dispatching subordinates.
 
 ## Canonical entry formats
@@ -232,9 +237,11 @@ project-root/
 | Need library docs or API refs | Dispatch `researcher` |
 | Dispatching any subagent | Run in background |
 | Uncertain about API/command/lib behavior | Verify via context7/web before brief |
-| Well-defined, scoped task | `builder-fast` (parallel where non-overlapping) |
+| Same edit across 5+ files/entries (one transform, N sites) | `builder-trivial` (parallel) |
+| Single scoped edit, assembled not repeated | `builder-fast` (parallel where non-overlapping) |
 | Complex logic or core code | `builder-smart` (serialized by file) |
 | Before planner sees implementation | `reviewer` (smart) |
 | Verifying done criteria | `tester` (fast) after builders |
+| Running a server / slow build / long noisy process | `watcher` (haiku) — returns a digest, keeps output out of context |
 | Problem survived 2 failed attempts | Dispatch `auditor` to re-diagnose |
 | Simple bug fix, single session | None of this — just fix it |

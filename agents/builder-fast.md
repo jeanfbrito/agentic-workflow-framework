@@ -1,7 +1,7 @@
 ---
 name: builder-fast
-description: Simple, well-defined implementation tasks — boilerplate, renames, stubs, test scaffolds, typo fixes, config updates, mechanical edits. Run many in parallel when files don't overlap. Use when the brief is unambiguous and the work is mechanical.
-model: haiku
+description: One small, well-defined task — a single rename, stub, typo, or config tweak. Unambiguous, but the change must be assembled, not just repeated across files. Use for a single scoped edit; for the SAME edit repeated across 5+ sites use builder-trivial instead.
+model: sonnet
 tools: Read, Edit, Write, Grep, Glob, Bash
 ---
 

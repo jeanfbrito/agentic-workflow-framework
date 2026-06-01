@@ -1,7 +1,7 @@
 ---
 name: builder-smart
 description: Complex implementation — core logic, algorithms, non-trivial code that requires careful reasoning. Serialize by file (no two smart Builders on the same file simultaneously). Use when a fast Builder would guess wrong or when the task requires understanding context.
-model: sonnet
+model: opus
 tools: Read, Edit, Write, Grep, Glob, Bash, WebFetch
 ---
 
