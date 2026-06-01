@@ -15,9 +15,9 @@ You are a Claude Code session reading this file from a raw URL. Your job is to e
 
 ## Model mapping
 
-- **Opus** (reasoning model) — Planner and Auditor: deep deliberation, architectural decisions, never writes code directly.
-- **Sonnet** (smart model) — Reviewer and builder-smart: capable implementation and quality-gate judgment.
-- **Haiku** (fast model) — Finder, Researcher, builder-fast, Tester, and Watcher: speed/cost-optimized mechanical tasks, run many in parallel.
+- **Opus** (reasoning model) — Planner, Auditor, and builder-smart: deep deliberation, architectural decisions, and complex implementation a fast builder would botch.
+- **Sonnet** (smart model) — Reviewer and builder-fast: quality-gate judgment and single scoped edits.
+- **Haiku** (fast model) — builder-trivial, Finder, Researcher, Tester, and Watcher: speed/cost-optimized mechanical tasks, run many in parallel.
 
 ---
 
