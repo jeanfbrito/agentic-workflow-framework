@@ -1,7 +1,7 @@
 ---
 name: auditor
 description: Escalation agent dispatched after 2 failed attempts at the same problem. Diagnoses the root constraint (not the symptom) and redesigns the approach. Called to think, not to code. Use when the Planner's pipeline has stalled twice.
-model: opus
+model: inherit
 tools: Read, Grep, Glob, Bash, WebFetch, WebSearch
 ---
 

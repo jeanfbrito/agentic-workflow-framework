@@ -22,8 +22,11 @@ brain stays orchestrating.
 
 ### Reflex rules — default to dispatch
 
-1. Task touches 2+ files, or complex logic in 1 file → dispatch `builder-trivial`,
-   `builder-fast`, or `builder-smart`. Do not Edit yourself.
+1. Task touches 2+ files, or scoped complex logic in 1 file → dispatch
+   `builder-fast` (default implementation tier). Reserve `builder-smart` for
+   genuinely hard algorithmic or architectural code a fast Builder would botch.
+   The SAME edit repeated across 5+ sites → dispatch `builder-trivial`. Do not
+   Edit yourself.
 2. Search spanning >5 files, or tracing call chains → dispatch `finder`. Do not
    Grep yourself.
 3. Library docs, API references, CLI behavior → dispatch `researcher`. Do not
@@ -68,19 +71,22 @@ coordination, handoffs, blockers, or durable known issues, scaffold them first
 
 Ten roles, mapped to model tiers (fast / smart / reasoning):
 
-- **planner** [reasoning]: Opens every non-trivial task with a clear brief.
-  Closes with final approval after Reviewer pre-screens. Never writes code.
-- **auditor** [reasoning]: On demand only — dispatched after 2 failed attempts.
-  Diagnoses the root constraint and re-briefs the team. Thinks, doesn't code.
+- **planner** [reasoning, inherit]: Opens every non-trivial task with a clear
+  brief and a pipeline plan for the orchestrator to execute. Closes with final
+  approval after Reviewer pre-screens. Never writes code, never dispatches —
+  rides the session model.
+- **auditor** [reasoning, inherit]: On demand only — dispatched after 2 failed
+  attempts. Diagnoses the root constraint and re-briefs the team. Thinks,
+  doesn't code. Rides the session model, same as planner.
 - **reviewer** [smart]: First-pass quality gate after Builders. Patches small
   problems, escalates solid work to Planner.
-- **builder-smart** [reasoning]: Complex implementation — core logic, algorithms,
-  non-trivial code. Serialized by file.
-- **builder-fast** [smart]: A single scoped edit — one rename, stub, or config
-  tweak that must be assembled, not just repeated across files.
-- **builder-trivial** [fast]: The SAME edit repeated across 5+ sites (5+
-  files/entries) — mass renames, bulk i18n/config, stub generation. One
-  fully-specified transform, zero per-site decisions; run many in parallel.
+- **builder-fast** [smart]: Default implementation tier — scoped features, bug
+  fixes, and small multi-file changes, not just a single tiny edit.
+- **builder-smart** [reasoning]: Reserved for genuinely hard algorithmic or
+  architectural code — the cases a fast Builder would botch. Serialized by file.
+- **builder-trivial** [fast]: Bulk mechanical work across 5+ sites (mass
+  renames, bulk i18n/config, stub generation). Light per-site judgment is now
+  acceptable; run many in parallel.
 - **finder** [fast]: Codebase search — files, call chains, patterns. Read-only,
   parallel-safe.
 - **researcher** [fast]: External docs, API references, library behavior.
@@ -94,8 +100,9 @@ Ten roles, mapped to model tiers (fast / smart / reasoning):
 Rule of thumb: "Where is X in the code?" → finder. "How does library Y work?" →
 researcher.
 
-**Pipeline**: planner briefs → finders/researchers (parallel, write to
-`findings.md`) → builders (trivial/fast in parallel, smart serialized by file) →
+**Pipeline**: planner briefs → orchestrator dispatches finders/researchers
+(parallel, write to `findings.md`) → orchestrator dispatches builders
+(trivial/fast in parallel, smart serialized by file) → orchestrator dispatches
 reviewer → planner approves.
 
 ## Tier Semantics
