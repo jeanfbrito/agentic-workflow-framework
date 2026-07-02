@@ -13,6 +13,7 @@ In the main chat, act as the **Orchestrator** by default, regardless of the mode
 3. Library docs, API references, CLI behavior → dispatch `researcher`. Do not WebFetch yourself.
 4. Running tests, validating DoD, checking logs → dispatch `tester`.
 4b. Running a server, a slow build, a deploy, or any long-running / high-volume-output process → dispatch `watcher` (haiku); it absorbs the output and returns a digest. NEVER run these in your own Bash — it floods your context.
+4c. Whenever builders (or any subagent) go to background, pair them with a `watcher` dispatched at the SAME time, polling all their task_ids every ~30s via `TaskOutput`. Don't wait for silence to become suspicious before reacting — the passive completion notification is known to hang silently (background agent finishes, orchestrator never told; same bug class as needing to manually open a stuck agent's transcript to unstick it), and by the time silence looks wrong minutes are already lost. One watcher can track several builders at once — no need for 1:1 pairing. See § Agent Roles, watcher.
 5. Multi-step work (3+ steps) → apply the `/agentic` pipeline at the inferred tier automatically. No manual `/agentic` invocation needed.
 
 ### Exceptions — do it yourself
@@ -32,7 +33,7 @@ If uncertain between "do it" and "dispatch" → **dispatch**. The user chose thi
 1. Read pre-warmed context once at task start: open handoffs, active blockers, current findings, `docs/KNOWN_ISSUES.md`, current `todo.md`.
 2. Infer tier (`trivial` / `medium` / `full`, see § Tier semantics).
 3. Write a card to `.localdev/workflow/todo.md` in the canonical format (status `[todo]`, Attempts, DoD, Deps — see § Canonical entry formats).
-4. Dispatch subagents in background.
+4. Dispatch subagents in background, paired with a `watcher` polling their task_ids every ~30s (rule 4c) — never idle-wait on completion notifications alone.
 5. Review subagent output, compose a tight answer for the user. Raw subagent output stays in their context, not yours.
 6. On completion, remove the card from `todo.md` and append a timestamped entry to `.localdev/workflow/done.md` (summary, links, files). If a handoff existed for this task, absorb its durable content into the same done.md entry and delete the handoff file.
 
@@ -64,7 +65,7 @@ If uncertain between "do it" and "dispatch" → **dispatch**. The user chose thi
 - Use subagents liberally — one task per subagent, keep main context clean.
 - Assign each subagent a role (see Agent Roles below).
 - **Planner (reasoning) opens every non-trivial task** with the brief and closes with final approval after Reviewer pre-screens. The planner briefs; the orchestrator dispatches.
-- **Run subagents in background** — the orchestrator dispatches Finders, Builders, Testers in background so its own context stays free to receive steering, answer blockers, and coordinate. A blocked orchestrator defeats the parallel pipeline.
+- **Run subagents in background** — the orchestrator dispatches Finders, Builders, Testers in background so its own context stays free to receive steering, answer blockers, and coordinate. A blocked orchestrator defeats the parallel pipeline. Pair the batch with one `watcher` polling every ~30s (rule 4c) — don't rely on completion notifications alone, they're known to hang silently.
 - **Verify unknowns before dispatching** — use context7 or web search to confirm APIs, commands, and library behavior before writing the brief. Agents looping on nonexistent commands waste cycles and compound into blockers.
 - **Clarify before starting**: If a request has 2+ plausible interpretations, name them and ask before writing code. Don't guess and proceed.
 - **Surgical changes**: Touch only what the task requires. Don't improve adjacent code, comments, or formatting. Remove imports/variables/functions that YOUR changes made unused — leave pre-existing dead code alone; mention it instead.
@@ -120,7 +121,7 @@ Roles (installed as subagents in `~/.claude/agents/`):
 - **finder** [fast]: Codebase search — files, call chains, patterns. Read-only. Parallel-safe.
 - **researcher** [fast]: External docs, API references, library behavior. Read-only. Parallel-safe.
 - **tester** [fast]: Runs tests, checks logs, validates done criteria. Read-only. Parallel-safe.
-- **watcher** [fast, haiku]: Runs slow / long-running / noisy processes (servers, builds, test suites, deploys, log streams) and returns only a tight digest — a one-line verdict plus verbatim errors on failure. Context firewall: keeps high-volume output out of the orchestrator. One-shot — can smoke-boot and log-sample a server, but cannot hold one alive across dispatches.
+- **watcher** [fast, haiku]: Runs slow / long-running / noisy processes (servers, builds, test suites, deploys, log streams) and returns only a tight digest — a one-line verdict plus verbatim errors on failure. Context firewall: keeps high-volume output out of the orchestrator. One-shot — can smoke-boot and log-sample a server, but cannot hold one alive across dispatches. Also babysits stalled background subagents: polls `TaskOutput(block=false)` on a task_id every ~30-60s instead of one long block, and can `SendMessage`-ping a hung agentId to force the resync that manually opening its transcript does.
 
 Rule of thumb: "Where is X in the code?" → finder. "How does library Y work?" → researcher.
 
@@ -294,6 +295,7 @@ project-root/
 | Before planner sees implementation | `reviewer` (smart) |
 | Verifying done criteria | `tester` (fast) after builders |
 | Running a server / slow build / long noisy process | `watcher` (haiku) — returns a digest, keeps output out of context |
+| Background subagent stalled, no progress for minutes | `watcher` (haiku) polls `TaskOutput`/pings via `SendMessage` — don't idle yourself |
 | Runtime verification blocked (won't launch, env missing) | Mark **UNVERIFIED** + state the blocker — never imply success |
 | Target is user-side hardware / device / auth | Give user exact commands, interpret their pasted output — don't probe locally |
 | Problem survived 2 failed attempts | Dispatch `auditor` to re-diagnose |
