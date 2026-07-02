@@ -154,9 +154,11 @@ for skill_dir in "$SCRIPT_DIR/skills"/*/; do
   fi
 done
 
-# 7e -- hooks/orchestrator.sh exists in the repo
-test -f "$SCRIPT_DIR/hooks/orchestrator.sh"
-check "hooks/orchestrator.sh exists in repo" "$?"
+# 7e -- repo hook scripts exist and pass bash syntax check
+for h in orchestrator.sh inject-agentic-context.sh allow-workflow-paths.sh; do
+  [ -f "$SCRIPT_DIR/hooks/$h" ] && bash -n "$SCRIPT_DIR/hooks/$h" 2>/dev/null
+  check "hooks/$h exists in repo and parses" "$?"
+done
 
 # ---------------------------------------------------------------------------
 # Check 8 -- every repo skill is installed in ~/.claude/skills/

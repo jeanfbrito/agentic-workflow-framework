@@ -37,7 +37,14 @@ These are not bundled. Install separately. The framework's subagents and slash c
 /plugin add jeanfbrito/agentic-workflow-framework
 ```
 
-Claude Code downloads, installs, and activates the framework automatically. Hooks and slash commands are live immediately — no shell step required.
+Claude Code downloads, installs, and activates the framework automatically. Hooks, slash commands, agents, and skills are live immediately — no shell step required.
+
+The plugin sandbox cannot edit `~/.claude/CLAUDE.md` or `settings.json`, so the plugin closes those two gaps with its own hooks:
+
+- **Always-on conventions**: a SessionStart hook injects `AGENTIC.md` into every session's context (it no-ops when the shell installer's `@AGENTIC.md` import is present, so nothing loads twice).
+- **Permissions**: a PreToolUse hook auto-allows Write/Edit on `.localdev/workflow/**` and `docs/KNOWN_ISSUES.md`, mirroring the permission globs `install.sh` grants. All other paths follow the normal permission flow.
+
+Both install paths are functionally equivalent; Option 1 additionally writes the import/globs into your `~/.claude/` config directly.
 
 **Option 1: clone and run**
 

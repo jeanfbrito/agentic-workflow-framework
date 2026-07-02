@@ -8,6 +8,12 @@
         "hooks": [
           {
             "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-agentic-context.sh\"",
+            "timeout": 5,
+            "statusMessage": "Loading agentic framework conventions..."
+          },
+          {
+            "type": "command",
             "command": "if [ -d .localdev/workflow ]; then found=0; if grep -qE '^## [0-9]{4}-' .localdev/workflow/blockers.md 2>/dev/null; then echo 'Active blockers: .localdev/workflow/blockers.md'; found=1; fi; for f in .localdev/workflow/handoffs/*.md; do [ -e \"$f\" ] && { echo \"Open handoff: $f\"; found=1; }; done; if [ \"$found\" -eq 0 ]; then echo 'agentic: armed'; fi; fi",
             "timeout": 5,
             "statusMessage": "Checking agentic session state..."
@@ -23,6 +29,19 @@
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/orchestrator.sh\"",
             "timeout": 5,
             "statusMessage": "Orchestrator check..."
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/allow-workflow-paths.sh\"",
+            "timeout": 5,
+            "statusMessage": "Framework path check..."
           }
         ]
       }
