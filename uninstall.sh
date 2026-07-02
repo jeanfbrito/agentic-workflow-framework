@@ -1,22 +1,36 @@
 #!/usr/bin/env bash
 # uninstall.sh -- Agentic Workflow Framework global uninstaller
-# Removes the 15 framework files + skills/ dirs from ~/.claude/ and strips
+# Removes the framework files + skills/ dirs from ~/.claude/ and strips
 # hook/import entries and framework permission globs from settings.json.
 # Does NOT remove ~/.claude/agents/, ~/.claude/commands/, ~/.claude/hooks/,
 # or ~/.claude/skills/ directories -- they may contain non-framework files.
+#
+# Default: surgical strip of framework-added lines/entries only -- preserves
+# anything you added to CLAUDE.md / settings.json after installing.
+# --restore-backup: wholesale-restore CLAUDE.md and settings.json from the
+#   pre-install backup snapshot (if present), discarding ALL edits made
+#   since install -- framework or not. Use only for a full revert.
 
 set -euo pipefail
+shopt -s nullglob
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "ERROR: python3 is required but not found in PATH." >&2
+  exit 1
+fi
 
 # ---------------------------------------------------------------------------
 # 1. Confirmation
 # ---------------------------------------------------------------------------
 
 YES=0
+RESTORE_BACKUP=0
 for arg in "$@"; do
   case "$arg" in
     --yes|-y) YES=1 ;;
+    --restore-backup) RESTORE_BACKUP=1 ;;
   esac
 done
 
@@ -32,7 +46,10 @@ fi
 echo "Uninstalling Agentic Workflow Framework..."
 
 # ---------------------------------------------------------------------------
-# 2. Remove the 15 framework files
+# 2. Remove framework files
+#    Agent/command lists are derived from the repo (agents/*.md,
+#    commands/*.md), mirroring install.sh's dynamic loops, so removals stay
+#    in sync with the roster without a manual edit here.
 # ---------------------------------------------------------------------------
 
 REMOVED=()
@@ -49,21 +66,12 @@ remove_file() {
 }
 
 remove_file ~/.claude/AGENTIC.md
-remove_file ~/.claude/agents/planner.md
-remove_file ~/.claude/agents/auditor.md
-remove_file ~/.claude/agents/reviewer.md
-remove_file ~/.claude/agents/builder-smart.md
-remove_file ~/.claude/agents/builder-fast.md
-remove_file ~/.claude/agents/builder-trivial.md
-remove_file ~/.claude/agents/finder.md
-remove_file ~/.claude/agents/researcher.md
-remove_file ~/.claude/agents/tester.md
-remove_file ~/.claude/agents/watcher.md
-remove_file ~/.claude/commands/agentic.md
-remove_file ~/.claude/commands/init-agentic.md
-remove_file ~/.claude/commands/handoff.md
-remove_file ~/.claude/commands/blocker.md
-remove_file ~/.claude/commands/known-issue.md
+for agent_src in "$SCRIPT_DIR"/agents/*.md; do
+  remove_file ~/.claude/agents/"$(basename "$agent_src")"
+done
+for cmd_src in "$SCRIPT_DIR"/commands/*.md; do
+  remove_file ~/.claude/commands/"$(basename "$cmd_src")"
+done
 remove_file ~/.claude/hooks/orchestrator.sh
 
 # ---------------------------------------------------------------------------
@@ -94,6 +102,9 @@ fi
 
 # ---------------------------------------------------------------------------
 # 3. Strip @AGENTIC.md from CLAUDE.md
+#    Default: surgical strip of the import line only -- preserves anything
+#    added to CLAUDE.md after install. --restore-backup wholesale-restores
+#    the pre-install snapshot instead (destroys later edits).
 # ---------------------------------------------------------------------------
 
 CLAUDE_MD=~/.claude/CLAUDE.md
@@ -101,14 +112,13 @@ CLAUDE_MD_NAMED_BACKUP="$CLAUDE_MD.bak.agentic-workflow-framework"
 CLAUDE_MD_ACTION=""
 
 if [ -f "$CLAUDE_MD" ]; then
-  if [ -f "$CLAUDE_MD_NAMED_BACKUP" ]; then
-    # Restore from the original pre-installation snapshot
+  if [ "$RESTORE_BACKUP" -eq 1 ] && [ -f "$CLAUDE_MD_NAMED_BACKUP" ]; then
+    # Restore from the original pre-installation snapshot (--restore-backup)
     cp "$CLAUDE_MD_NAMED_BACKUP" "$CLAUDE_MD"
     rm "$CLAUDE_MD_NAMED_BACKUP"
-    CLAUDE_MD_ACTION="restored from named backup and removed $CLAUDE_MD_NAMED_BACKUP"
+    CLAUDE_MD_ACTION="restored from named backup and removed $CLAUDE_MD_NAMED_BACKUP (--restore-backup)"
   elif grep -qF '@AGENTIC.md' "$CLAUDE_MD"; then
-    # No named backup -- fall back to stripping the import line
-    # Use python3 for portability (BSD sed and GNU sed differ on in-place flags).
+    # Surgical strip -- use python3 for portability (BSD sed and GNU sed differ on in-place flags).
     python3 - "$CLAUDE_MD" <<'PYEOF'
 import sys
 path = sys.argv[1]
@@ -127,7 +137,10 @@ for l in filtered:
 with open(path, 'w') as fh:
     fh.writelines(out)
 PYEOF
-    CLAUDE_MD_ACTION="stripped @AGENTIC.md line (no named backup found)"
+    CLAUDE_MD_ACTION="stripped @AGENTIC.md line"
+    if [ -f "$CLAUDE_MD_NAMED_BACKUP" ]; then
+      CLAUDE_MD_ACTION="$CLAUDE_MD_ACTION (backup preserved at $CLAUDE_MD_NAMED_BACKUP -- rerun with --restore-backup to revert fully)"
+    fi
   else
     CLAUDE_MD_ACTION="@AGENTIC.md line not found -- nothing to strip"
   fi
@@ -137,6 +150,10 @@ fi
 
 # ---------------------------------------------------------------------------
 # 4. Strip hook entries from settings.json
+#    Default: surgical strip of framework hook entries + permission globs
+#    only -- preserves anything added to settings.json after install.
+#    --restore-backup wholesale-restores the pre-install snapshot instead
+#    (destroys later edits).
 # ---------------------------------------------------------------------------
 
 SETTINGS_JSON=~/.claude/settings.json
@@ -144,13 +161,13 @@ SETTINGS_NAMED_BACKUP="$SETTINGS_JSON.bak.agentic-workflow-framework"
 SETTINGS_ACTION=""
 
 if [ -f "$SETTINGS_JSON" ] && [ -s "$SETTINGS_JSON" ]; then
-  if [ -f "$SETTINGS_NAMED_BACKUP" ]; then
-    # Restore from the original pre-installation snapshot
+  if [ "$RESTORE_BACKUP" -eq 1 ] && [ -f "$SETTINGS_NAMED_BACKUP" ]; then
+    # Restore from the original pre-installation snapshot (--restore-backup)
     cp "$SETTINGS_NAMED_BACKUP" "$SETTINGS_JSON"
     rm "$SETTINGS_NAMED_BACKUP"
-    SETTINGS_ACTION="restored from named backup and removed $SETTINGS_NAMED_BACKUP"
+    SETTINGS_ACTION="restored from named backup and removed $SETTINGS_NAMED_BACKUP (--restore-backup)"
   else
-    # No named backup -- fall back to stripping the hook entries and framework perms
+    # Surgical strip of the hook entries and framework perms
     python3 - "$SETTINGS_JSON" <<'PYEOF'
 import json, sys
 path = sys.argv[1]
@@ -208,7 +225,10 @@ if changed:
     with open(path, 'w') as fh:
         json.dump(data, fh, indent=2)
 PYEOF
-    SETTINGS_ACTION="stripped hook entries and framework permission globs (no named backup found)"
+    SETTINGS_ACTION="stripped hook entries and framework permission globs"
+    if [ -f "$SETTINGS_NAMED_BACKUP" ]; then
+      SETTINGS_ACTION="$SETTINGS_ACTION (backup preserved at $SETTINGS_NAMED_BACKUP -- rerun with --restore-backup to revert fully)"
+    fi
   fi
 else
   SETTINGS_ACTION="settings.json not found or empty -- nothing to do"

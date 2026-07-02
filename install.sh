@@ -8,6 +8,7 @@
 # .localdev/workflow and docs/KNOWN_ISSUES.md globs are added (no duplicates).
 
 set -euo pipefail
+shopt -s nullglob
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -42,6 +43,11 @@ if [ "$YES" -eq 0 ]; then
 fi
 
 echo "Installing Agentic Workflow Framework..."
+
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "ERROR: python3 is required but not found in PATH. Install python3 and re-run." >&2
+  exit 1
+fi
 
 # ---------------------------------------------------------------------------
 # 2. Directories
@@ -95,6 +101,7 @@ for skill_src in "$SCRIPT_DIR/skills"/*/; do
   [ -d "$skill_src" ] || continue
   skill_name="$(basename "$skill_src")"
   if [ "$LINK" -eq 1 ]; then
+    rm -rf ~/.claude/skills/"$skill_name"
     ln -sfn "$skill_src" ~/.claude/skills/"$skill_name"
   else
     rm -rf ~/.claude/skills/"$skill_name"
@@ -242,8 +249,11 @@ PYEOF
 
 echo ""
 echo "--- Verification ---"
-bash "$SCRIPT_DIR/verify.sh"
-ALL_PASS=$?
+if bash "$SCRIPT_DIR/verify.sh"; then
+  ALL_PASS=0
+else
+  ALL_PASS=1
+fi
 
 # ---------------------------------------------------------------------------
 # 8. Summary

@@ -4,9 +4,15 @@
 # Prints [x] for pass, [ ] for fail. Exits 1 if any check fails.
 # Can be run standalone after manual edits, or called by install.sh.
 
-set -euo pipefail
+set -uo pipefail
+shopt -s nullglob
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "ERROR: python3 is required but not found in PATH." >&2
+  exit 1
+fi
 
 PASS=0
 FAIL=1
@@ -49,40 +55,61 @@ check "${#FILES[@]} framework files exist in ~/.claude/" "$ALL_FILES"
 # Check 2 -- orchestrator.sh is executable
 # ---------------------------------------------------------------------------
 
-test -x ~/.claude/hooks/orchestrator.sh
-check "orchestrator.sh is executable" "$?"
+if test -x ~/.claude/hooks/orchestrator.sh; then
+  check "orchestrator.sh is executable" "$PASS"
+else
+  check "orchestrator.sh is executable" "$FAIL"
+fi
 
 # ---------------------------------------------------------------------------
 # Check 3 -- CLAUDE.md contains @AGENTIC.md import
 # ---------------------------------------------------------------------------
 
-grep -qF '@AGENTIC.md' ~/.claude/CLAUDE.md 2>/dev/null
-check "CLAUDE.md contains @AGENTIC.md" "$?"
+if grep -qF '@AGENTIC.md' ~/.claude/CLAUDE.md 2>/dev/null; then
+  check "CLAUDE.md contains @AGENTIC.md" "$PASS"
+else
+  check "CLAUDE.md contains @AGENTIC.md" "$FAIL"
+fi
 
 # ---------------------------------------------------------------------------
 # Check 4 -- settings.json is valid JSON and contains both hook strings
 # ---------------------------------------------------------------------------
 
-python3 -c "import json,sys; json.load(open(sys.argv[1]))" ~/.claude/settings.json 2>/dev/null
-check "settings.json is valid JSON" "$?"
+if python3 -c "import json,sys; json.load(open(sys.argv[1]))" ~/.claude/settings.json 2>/dev/null; then
+  check "settings.json is valid JSON" "$PASS"
+else
+  check "settings.json is valid JSON" "$FAIL"
+fi
 
-grep -q 'agentic: armed' ~/.claude/settings.json 2>/dev/null
-check "settings.json contains SessionStart hook ('agentic: armed')" "$?"
+if grep -q 'agentic: armed' ~/.claude/settings.json 2>/dev/null; then
+  check "settings.json contains SessionStart hook ('agentic: armed')" "$PASS"
+else
+  check "settings.json contains SessionStart hook ('agentic: armed')" "$FAIL"
+fi
 
-grep -q 'orchestrator.sh' ~/.claude/settings.json 2>/dev/null
-check "settings.json contains UserPromptSubmit hook ('orchestrator.sh')" "$?"
+if grep -q 'orchestrator.sh' ~/.claude/settings.json 2>/dev/null; then
+  check "settings.json contains UserPromptSubmit hook ('orchestrator.sh')" "$PASS"
+else
+  check "settings.json contains UserPromptSubmit hook ('orchestrator.sh')" "$FAIL"
+fi
 
 # ---------------------------------------------------------------------------
 # Check 5 -- orchestrator hook short-prompt bypass + work-verb trigger
 # ---------------------------------------------------------------------------
 
 SHORT_OUT=$(echo '{"prompt":"hi"}' | bash ~/.claude/hooks/orchestrator.sh 2>/dev/null)
-[ -z "$SHORT_OUT" ]
-check "orchestrator hook: short prompt produces no output" "$?"
+if [ -z "$SHORT_OUT" ]; then
+  check "orchestrator hook: short prompt produces no output" "$PASS"
+else
+  check "orchestrator hook: short prompt produces no output" "$FAIL"
+fi
 
 LONG_OUT=$(echo '{"prompt":"please refactor the auth middleware and add retry logic"}' | bash ~/.claude/hooks/orchestrator.sh 2>/dev/null)
-echo "$LONG_OUT" | grep -q '^orchestrator:'
-check "orchestrator hook: work-verb prompt produces 'orchestrator:' output" "$?"
+if echo "$LONG_OUT" | grep -q '^orchestrator:'; then
+  check "orchestrator hook: work-verb prompt produces 'orchestrator:' output" "$PASS"
+else
+  check "orchestrator hook: work-verb prompt produces 'orchestrator:' output" "$FAIL"
+fi
 
 # ---------------------------------------------------------------------------
 # Check 6 -- SessionStart three-state test
@@ -90,16 +117,22 @@ check "orchestrator hook: work-verb prompt produces 'orchestrator:' output" "$?"
 
 # State A -- no .localdev/workflow dir
 STATE_A=$(cd /tmp && bash -c 'if [ -d .localdev/workflow ]; then found=0; if grep -qE '"'"'^## [0-9]{4}-'"'"' .localdev/workflow/blockers.md 2>/dev/null; then echo "active blockers"; found=1; fi; for f in .localdev/workflow/handoffs/*.md; do [ -e "$f" ] && { echo "open handoff"; found=1; }; done; if [ "$found" -eq 0 ]; then echo "armed"; fi; fi' 2>/dev/null)
-[ -z "$STATE_A" ]
-check "SessionStart state A (no .localdev/workflow): silent" "$?"
+if [ -z "$STATE_A" ]; then
+  check "SessionStart state A (no .localdev/workflow): silent" "$PASS"
+else
+  check "SessionStart state A (no .localdev/workflow): silent" "$FAIL"
+fi
 
 # State B -- .localdev/workflow exists, no blockers
 TMPDIR_B=$(mktemp -d)
 mkdir -p "$TMPDIR_B/.localdev/workflow/handoffs"
 STATE_B=$(cd "$TMPDIR_B" && bash -c 'if [ -d .localdev/workflow ]; then found=0; if grep -qE '"'"'^## [0-9]{4}-'"'"' .localdev/workflow/blockers.md 2>/dev/null; then echo "active blockers"; found=1; fi; for f in .localdev/workflow/handoffs/*.md; do [ -e "$f" ] && { echo "open handoff"; found=1; }; done; if [ "$found" -eq 0 ]; then echo "armed"; fi; fi' 2>/dev/null)
 rm -rf "$TMPDIR_B"
-echo "$STATE_B" | grep -q 'armed'
-check "SessionStart state B (no blockers): prints 'armed'" "$?"
+if echo "$STATE_B" | grep -q 'armed'; then
+  check "SessionStart state B (no blockers): prints 'armed'" "$PASS"
+else
+  check "SessionStart state B (no blockers): prints 'armed'" "$FAIL"
+fi
 
 # State C -- blockers.md has valid entry header
 TMPDIR_C=$(mktemp -d)
@@ -107,8 +140,11 @@ mkdir -p "$TMPDIR_C/.localdev/workflow/handoffs"
 echo '## 2026-04-16 14:00 -- test' > "$TMPDIR_C/.localdev/workflow/blockers.md"
 STATE_C=$(cd "$TMPDIR_C" && bash -c 'if [ -d .localdev/workflow ]; then found=0; if grep -qE '"'"'^## [0-9]{4}-'"'"' .localdev/workflow/blockers.md 2>/dev/null; then echo "active blockers"; found=1; fi; for f in .localdev/workflow/handoffs/*.md; do [ -e "$f" ] && { echo "open handoff"; found=1; }; done; if [ "$found" -eq 0 ]; then echo "armed"; fi; fi' 2>/dev/null)
 rm -rf "$TMPDIR_C"
-echo "$STATE_C" | grep -q 'active blockers'
-check "SessionStart state C (active blocker): prints blocker warning" "$?"
+if echo "$STATE_C" | grep -q 'active blockers'; then
+  check "SessionStart state C (active blocker): prints blocker warning" "$PASS"
+else
+  check "SessionStart state C (active blocker): prints blocker warning" "$FAIL"
+fi
 
 # ---------------------------------------------------------------------------
 # Check 7 -- repo structural integrity (ported from Codex validate.mjs)
@@ -117,28 +153,28 @@ check "SessionStart state C (active blocker): prints blocker warning" "$?"
 
 # 7a -- .claude-plugin/plugin.json exists and is valid JSON
 PLUGIN_JSON="$SCRIPT_DIR/.claude-plugin/plugin.json"
-if [ -f "$PLUGIN_JSON" ]; then
-  python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$PLUGIN_JSON" 2>/dev/null
-  check ".claude-plugin/plugin.json exists and is valid JSON" "$?"
+if [ -f "$PLUGIN_JSON" ] && python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$PLUGIN_JSON" 2>/dev/null; then
+  check ".claude-plugin/plugin.json exists and is valid JSON" "$PASS"
 else
   check ".claude-plugin/plugin.json exists and is valid JSON" "$FAIL"
 fi
 
-# 7b -- all 10 agent files exist
-AGENTS=(planner auditor reviewer builder-smart builder-fast builder-trivial finder researcher tester watcher)
-MISSING_AGENTS=0
-for a in "${AGENTS[@]}"; do
-  [ -f "$SCRIPT_DIR/agents/$a.md" ] || { MISSING_AGENTS=1; break; }
-done
-check "all 10 agent files exist in agents/" "$MISSING_AGENTS"
+# 7b -- agent files exist in agents/ (count derived from repo contents, not
+#       hardcoded, so new agents don't require an installer/verify edit)
+AGENT_FILES=("$SCRIPT_DIR"/agents/*.md)
+if [ "${#AGENT_FILES[@]}" -gt 0 ]; then
+  check "all ${#AGENT_FILES[@]} agent files exist in agents/" "$PASS"
+else
+  check "agent files exist in agents/" "$FAIL"
+fi
 
-# 7c -- all 5 command files exist
-COMMANDS=(agentic init-agentic handoff blocker known-issue)
-MISSING_COMMANDS=0
-for c in "${COMMANDS[@]}"; do
-  [ -f "$SCRIPT_DIR/commands/$c.md" ] || { MISSING_COMMANDS=1; break; }
-done
-check "all 5 command files exist in commands/" "$MISSING_COMMANDS"
+# 7c -- command files exist in commands/ (count derived from repo contents)
+COMMAND_FILES=("$SCRIPT_DIR"/commands/*.md)
+if [ "${#COMMAND_FILES[@]}" -gt 0 ]; then
+  check "all ${#COMMAND_FILES[@]} command files exist in commands/" "$PASS"
+else
+  check "command files exist in commands/" "$FAIL"
+fi
 
 # 7d -- every repo skill has a SKILL.md with valid frontmatter (--- ... description:)
 for skill_dir in "$SCRIPT_DIR/skills"/*/; do
@@ -156,8 +192,11 @@ done
 
 # 7e -- repo hook scripts exist and pass bash syntax check
 for h in orchestrator.sh inject-agentic-context.sh allow-workflow-paths.sh; do
-  [ -f "$SCRIPT_DIR/hooks/$h" ] && bash -n "$SCRIPT_DIR/hooks/$h" 2>/dev/null
-  check "hooks/$h exists in repo and parses" "$?"
+  if [ -f "$SCRIPT_DIR/hooks/$h" ] && bash -n "$SCRIPT_DIR/hooks/$h" 2>/dev/null; then
+    check "hooks/$h exists in repo and parses" "$PASS"
+  else
+    check "hooks/$h exists in repo and parses" "$FAIL"
+  fi
 done
 
 # ---------------------------------------------------------------------------
@@ -168,8 +207,11 @@ done
 for skill_dir in "$SCRIPT_DIR/skills"/*/; do
   [ -d "$skill_dir" ] || continue
   s="$(basename "$skill_dir")"
-  test -f ~/.claude/skills/"$s"/SKILL.md
-  check "~/.claude/skills/$s/SKILL.md exists" "$?"
+  if test -f ~/.claude/skills/"$s"/SKILL.md; then
+    check "~/.claude/skills/$s/SKILL.md exists" "$PASS"
+  else
+    check "~/.claude/skills/$s/SKILL.md exists" "$FAIL"
+  fi
 done
 
 # ---------------------------------------------------------------------------
@@ -177,7 +219,7 @@ done
 #            does NOT contain any stale .claude/mytasks glob
 # ---------------------------------------------------------------------------
 
-python3 - ~/.claude/settings.json <<'PYEOF'
+if python3 - ~/.claude/settings.json <<'PYEOF'
 import json, sys, os
 path = sys.argv[1]
 if not os.path.isfile(path):
@@ -193,9 +235,13 @@ REQUIRED = [
 missing = [g for g in REQUIRED if g not in allow]
 sys.exit(1 if missing else 0)
 PYEOF
-check "settings.json permissions.allow contains the 4 .localdev/workflow globs" "$?"
+then
+  check "settings.json permissions.allow contains the 4 .localdev/workflow globs" "$PASS"
+else
+  check "settings.json permissions.allow contains the 4 .localdev/workflow globs" "$FAIL"
+fi
 
-python3 - ~/.claude/settings.json <<'PYEOF'
+if python3 - ~/.claude/settings.json <<'PYEOF'
 import json, sys, os
 path = sys.argv[1]
 if not os.path.isfile(path):
@@ -205,7 +251,44 @@ allow = data.get("permissions", {}).get("allow", [])
 stale = [g for g in allow if '.claude/mytasks' in g]
 sys.exit(1 if stale else 0)
 PYEOF
-check "settings.json permissions.allow contains NO stale .claude/mytasks globs" "$?"
+then
+  check "settings.json permissions.allow contains NO stale .claude/mytasks globs" "$PASS"
+else
+  check "settings.json permissions.allow contains NO stale .claude/mytasks globs" "$FAIL"
+fi
+
+# ---------------------------------------------------------------------------
+# Check 10 -- agent model bindings are consistent with AGENTIC.md's
+#             Agent Roles bullets. Both sides are parsed fresh at runtime
+#             (no hardcoded bindings) so this doesn't go stale as tiers
+#             shift. Tolerant: only fails when AGENTIC.md's role bullet
+#             names a model alias (opus/sonnet/haiku/inherit) that conflicts
+#             with the agent's frontmatter `model:` value; a bullet with no
+#             explicit alias (just a tier word like "reasoning"/"smart"/
+#             "fast") is not compared.
+# ---------------------------------------------------------------------------
+
+for agent_src in "$SCRIPT_DIR"/agents/*.md; do
+  agent_name="$(basename "$agent_src" .md)"
+  fm_model="$(grep -m1 '^model:' "$agent_src" | sed 's/^model:[[:space:]]*//')"
+  role_line="$(grep -E "^- \*\*${agent_name}\*\*" "$SCRIPT_DIR/AGENTIC.md" | head -n1)"
+  if [ -z "$role_line" ] || [ -z "$fm_model" ]; then
+    check "model binding consistent: $agent_name" "$PASS"
+    continue
+  fi
+  bracket="$(echo "$role_line" | grep -oE '\[[^]]*\]' | head -n1)"
+  conflict=0
+  for alias in opus sonnet haiku inherit; do
+    if echo "$bracket" | grep -qw "$alias" && [ "$alias" != "$fm_model" ]; then
+      conflict=1
+    fi
+  done
+  if [ "$conflict" -eq 0 ]; then
+    check "model binding consistent: $agent_name (frontmatter=$fm_model, AGENTIC.md=$bracket)" "$PASS"
+  else
+    check "model binding consistent: $agent_name (frontmatter=$fm_model, AGENTIC.md=$bracket)" "$FAIL"
+  fi
+done
 
 # ---------------------------------------------------------------------------
 # Result
