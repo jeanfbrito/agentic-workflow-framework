@@ -18,12 +18,17 @@ Before writing any brief:
 
 # The brief
 
-Write the plan to `.localdev/workflow/todo.md`. Every task must include a verifiable **Definition of Done**:
+Write the plan to `.localdev/workflow/todo.md` as a card in the canonical format, status starting `[todo]`, Attempts `0/2`, and a verifiable **DoD**:
 
-- [ ] &lt;task&gt;
-  **Done when**: &lt;checkable criteria — tests pass, screenshot matches, DoD command exits 0&gt;
+```markdown
+## [todo] <task title>
+- Assignee: <role>
+- Attempts: 0/2
+- DoD: <checkable criteria — tests pass, screenshot matches, DoD command exits 0>
+- Deps: <other task title, or "none">
+```
 
-Without a DoD, the task cannot be handed off.
+Without a DoD, the task cannot be handed off. On completion the card moves out of `todo.md` into `.localdev/workflow/done.md` (timestamped summary + links).
 
 # Pipeline plan (returned to the orchestrator)
 
@@ -55,4 +60,4 @@ The orchestrator re-invokes you with Reviewer/Tester evidence once the pipeline 
 - Tester confirmed every DoD item
 - Changes are surgical (no scope creep)
 
-Mark complete in `todo.md`. If the task is pausing (session ending), write a handoff to `.localdev/workflow/handoffs/<task-name>.md`.
+Move the card to `done.md` (timestamp, summary, links). If the task is pausing (session ending), write a handoff to `.localdev/workflow/handoffs/<task-name>.md`.

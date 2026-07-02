@@ -31,9 +31,10 @@ If uncertain between "do it" and "dispatch" → **dispatch**. The user chose thi
 
 1. Read pre-warmed context once at task start: open handoffs, active blockers, current findings, `docs/KNOWN_ISSUES.md`, current `todo.md`.
 2. Infer tier (`trivial` / `medium` / `full`, see § Tier semantics).
-3. Write a 2–5 line brief to `.localdev/workflow/todo.md` with Definition of Done.
+3. Write a card to `.localdev/workflow/todo.md` in the canonical format (status `[todo]`, Attempts, DoD, Deps — see § Canonical entry formats).
 4. Dispatch subagents in background.
 5. Review subagent output, compose a tight answer for the user. Raw subagent output stays in their context, not yours.
+6. On completion, remove the card from `todo.md` and append a timestamped entry to `.localdev/workflow/done.md` (summary, links, files). If a handoff existed for this task, absorb its durable content into the same done.md entry and delete the handoff file.
 
 ### Override
 
@@ -43,16 +44,17 @@ If uncertain between "do it" and "dispatch" → **dispatch**. The user chose thi
 
 ## Multi-Session Work
 
-- **Handoffs**: When finishing a task that will continue in another session, write a handoff to `.localdev/workflow/handoffs/<task-name>.md` covering what was done, key decisions, what's next, and open questions. When resuming multi-session work, check `.localdev/workflow/handoffs/` FIRST before doing anything else. Delete the file once the feature is complete — it's scaffolding, not documentation.
+- **Handoffs**: When finishing a task that will continue in another session, write a handoff to `.localdev/workflow/handoffs/<task-name>.md` covering what was done, key decisions, what's next, and open questions. When resuming multi-session work, check `.localdev/workflow/handoffs/` FIRST before doing anything else. Handoffs are in-flight scaffolding only: when the task completes, absorb the handoff's durable value (summary, decisions, links, files) into its `done.md` entry and DELETE the handoff file in the same step. A handoff surviving its task's completion is a bug in the flow.
 - **Agent blockers**: When you hit ambiguity you cannot resolve from code, docs, or git history — write the entry to `.localdev/workflow/blockers.md` (context, blocker, what you need, files involved) and ask the user. If resolved, remove the entry and continue. If not, halt that task. The file ensures blockers survive between sessions.
 - **Known issues**: When you discover a persistent platform or dependency constraint (not a task blocker, a fact of life), document it in `docs/KNOWN_ISSUES.md` with status, workaround, affected files, and reference. This is permanent project knowledge.
 - **Definition of Done**: Each task in `.localdev/workflow/todo.md` MUST include verifiable done criteria. "Implement X" is not done. "Implement X, verify Y, tests pass" is. If you can't check it, it's not done.
+- **Done log**: `.localdev/workflow/done.md` is the permanent, uncommitted completion trail — date, summary, links (PR/Jira/commit), files. Append-only; never loaded into context wholesale, never deleted at session close.
 
 ## Planning
 
 - Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions).
 - If something goes sideways, STOP and re-plan — don't keep pushing.
-- **2-strike rule**: After 2 failed approaches to the same problem, STOP. Do not try a 3rd. Dispatch an Auditor (reasoning model) to diagnose the root constraint, then re-plan from that constraint.
+- **2-strike rule**: After 2 failed approaches to the same problem, STOP. Do not try a 3rd. Dispatch an Auditor (reasoning model) to diagnose the root constraint, then re-plan from that constraint. Record strikes via the `Attempts` field on the task's `todo.md` card (e.g. `1/2`); at `2/2` this rule triggers.
 - Write plans to `.localdev/workflow/todo.md` with checkable items + done criteria.
 - Check in with the user before starting implementation.
 - Track progress, mark items complete, give high-level summary at each step.
@@ -154,6 +156,24 @@ Rules:
 
 Blockers and handoffs use fixed formats so hooks and slash commands can parse them reliably.
 
+### `.localdev/workflow/todo.md`
+
+`todo.md` is a lightweight status board — it holds only OPEN cards, nothing else. Card format:
+
+```markdown
+# Todo
+
+## [doing] <task title>
+- Assignee: builder-fast
+- Attempts: 1/2
+- DoD: <verifiable done criteria>
+- Deps: <other task title, or "none">
+```
+
+Status is one of `[todo]`, `[doing]`, `[blocked]`. A `[blocked]` card pairs with a full entry in `blockers.md` — `blockers.md` holds the question/context, the card just holds board state. `Attempts` ties into the 2-strike rule: increment per failed approach; at `2/2`, STOP and dispatch an Auditor. When a task completes, its card is REMOVED from `todo.md` and an entry is APPENDED to `done.md` — see below.
+
+Legacy ledgers: a `todo.md` in the old checkbox-brief format (no `[status]` tags) is migrated on first touch — open items become `[todo]`/`[doing]` cards, completed items get dated entries in `done.md`, then work proceeds on the new format. No separate migration tooling; the orchestrator does it inline.
+
 ### `.localdev/workflow/blockers.md`
 
 ```
@@ -187,9 +207,27 @@ The H2 header MUST start with `## ` followed by a 4-digit year. The SessionStart
 - <path>
 ```
 
+On task completion, absorb this content into the corresponding `done.md` entry and delete this file — a handoff should never outlive its task.
+
 ### `.localdev/workflow/findings.md`
 
 Flat append log — no structural requirements. Ephemeral; delete on session close.
+
+### `.localdev/workflow/done.md`
+
+Append-only completion log. Entry format:
+
+```markdown
+# Done
+
+## 2026-07-02 23:40 — <task title>
+- Summary: <1–3 lines: what shipped and how it was verified>
+- Links: PR #12, JIRA ABC-345, commit 774b73a  <!-- whatever applies; "none" ok -->
+- Files: <key paths touched>
+- Attempts: 1
+```
+
+The header format `## YYYY-MM-DD HH:MM — <title>` deliberately matches `blockers.md`'s parseable convention (`^## [0-9]{4}-`). Rules: append-only, chronological, never loaded into session context wholesale (it grows unbounded by design), never deleted at session close (unlike `findings.md`). It can be indexed into context-mode's FTS knowledge base for historical search.
 
 ## Pre-granted permissions
 
@@ -211,6 +249,7 @@ One-time setup, covers all projects. Scope matches framework footprint — no br
 On every session start, the hook (installed in `~/.claude/settings.json`) scans the CWD for `.localdev/workflow/` and prints:
 - Any `.md` files in `handoffs/` (resume context)
 - A warning if `blockers.md` contains unresolved entries
+- Open `[doing]`/`[blocked]` cards in `todo.md` (in-flight or stuck work; `[todo]` backlog cards are not surfaced)
 
 Silent no-op if `.localdev/workflow/` does not exist in the project.
 
@@ -220,7 +259,8 @@ Silent no-op if `.localdev/workflow/` does not exist in the project.
 project-root/
 ├── .localdev/                      # add to .gitignore (not auto-ignored)
 │   └── workflow/
-│       ├── todo.md                 # tasks + done criteria
+│       ├── todo.md                 # active board — open cards only
+│       ├── done.md                 # append-only completion log (date, summary, links)
 │       ├── blockers.md             # unresolved ambiguity (halts work)
 │       ├── findings.md             # ephemeral intra-session discoveries
 │       └── handoffs/
@@ -238,6 +278,9 @@ project-root/
 | Agent hit ambiguity it cannot resolve | `/blocker <summary>` |
 | Found a platform limitation that'll bite again | `/known-issue <summary>` |
 | Planning a non-trivial task | Add done criteria to each item |
+| Task completed | Move card from `todo.md` to `done.md` (timestamp, summary, PR/Jira links) |
+| Task done but handoff file still exists | Absorb into done.md entry, delete the handoff |
+| Need history of past work | Search `done.md` (context-mode FTS) — don't load it whole |
 | Request has 2+ interpretations | Clarify first, don't start |
 | Starting any non-trivial task | Dispatch `planner` subagent |
 | Need to find files or trace patterns | Dispatch `finder` (parallel) |

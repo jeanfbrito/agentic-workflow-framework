@@ -13,6 +13,7 @@ Set up the Agentic Workflow Framework scaffolding in the CURRENT working directo
 2. **Create directory structure**:
    - `.localdev/workflow/handoffs/` (directory)
    - `.localdev/workflow/todo.md` — starter with `# Todo` heading, `## Tasks` section, and a comment explaining the DoD format.
+   - `.localdev/workflow/done.md` — starter with `# Done` heading and a comment showing the entry format (`## YYYY-MM-DD HH:MM — <title>` with Summary/Links/Files/Attempts).
    - `.localdev/workflow/blockers.md` — starter with `# Active Blockers` heading and a comment explaining the entry format.
    - `.localdev/workflow/findings.md` — starter with `# Findings` heading and a note that the file is ephemeral.
    - `docs/KNOWN_ISSUES.md` — starter with `# Known Issues` heading and an entry-format comment.

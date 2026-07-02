@@ -153,35 +153,46 @@ it as a substitute for context-mode on large outputs.
 
 ## Task Ledger
 
-Keep `.localdev/workflow/todo.md` short:
+`.localdev/workflow/todo.md` is a lightweight status board — open cards only.
+Card format:
 
 ```markdown
 # Todo
 
-## Task
-<one paragraph>
-
-## Definition of Done
-- <observable outcome>
-- <verification command or evidence>
-
-## Steps
-- [ ] <step>
+## [doing] <task title>
+- Assignee: builder-fast
+- Attempts: 1/2
+- DoD: <verifiable done criteria>
+- Deps: <other task title, or "none">
 ```
 
-## Blockers, Handoffs, Known Issues
+Status is one of `[todo]`, `[doing]`, `[blocked]`. `Attempts` ties into the
+2-strike rule — increment per failed approach, `2/2` triggers an Auditor.
+When a task completes, remove its card and append an entry to
+`.localdev/workflow/done.md` instead. A legacy checkbox-brief `todo.md` is
+migrated to cards inline on first touch, no separate tooling needed.
+
+## Blockers, Handoffs, Known Issues, Done Log
 
 - **Blockers**: ambiguity unresolvable from code, docs, tests, or git history →
   append to `.localdev/workflow/blockers.md` (context, blocker, what you need,
   files involved), stop the task, ask the user. Header must start with `## ` and
-  a 4-digit year so hooks detect it.
+  a 4-digit year so hooks detect it. A `[blocked]` card in `todo.md` pairs with
+  the full entry here.
 - **Handoffs**: work continuing in another session → write
   `.localdev/workflow/handoffs/<task-name>.md` (status, next steps, open
-  questions, files touched). Check this directory FIRST when resuming. Delete
-  once the feature is complete — it's scaffolding, not docs.
+  questions, files touched). Check this directory FIRST when resuming. On task
+  completion, absorb its durable content (summary, decisions, links, files)
+  into the `done.md` entry and delete the handoff file — it's scaffolding, not
+  docs, and should never outlive its task.
 - **Known issues**: persistent platform/dependency constraints → document in
   `docs/KNOWN_ISSUES.md` (status, workaround, affected files, reference). This is
   permanent, committed project knowledge.
 - **Findings**: intra-session discoveries other agents need → append to
   `.localdev/workflow/findings.md`. Ephemeral; delete on session close.
   Findings *inform*; blockers *halt*.
+- **Done log**: completed cards move to `.localdev/workflow/done.md` — a
+  timestamped entry (`## YYYY-MM-DD HH:MM — <title>`) with summary, links, files,
+  and attempts. Append-only, grows unbounded by design; never loaded into
+  session context wholesale and never deleted at session close (unlike
+  `findings.md`). Search it via context-mode FTS when you need history.
