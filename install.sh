@@ -68,22 +68,19 @@ install_file() {
 
 install_file "$SCRIPT_DIR/AGENTIC.md"                    ~/.claude/AGENTIC.md
 
-install_file "$SCRIPT_DIR/agents/planner.md"             ~/.claude/agents/planner.md
-install_file "$SCRIPT_DIR/agents/auditor.md"             ~/.claude/agents/auditor.md
-install_file "$SCRIPT_DIR/agents/reviewer.md"            ~/.claude/agents/reviewer.md
-install_file "$SCRIPT_DIR/agents/builder-smart.md"       ~/.claude/agents/builder-smart.md
-install_file "$SCRIPT_DIR/agents/builder-fast.md"        ~/.claude/agents/builder-fast.md
-install_file "$SCRIPT_DIR/agents/builder-trivial.md"     ~/.claude/agents/builder-trivial.md
-install_file "$SCRIPT_DIR/agents/finder.md"              ~/.claude/agents/finder.md
-install_file "$SCRIPT_DIR/agents/researcher.md"          ~/.claude/agents/researcher.md
-install_file "$SCRIPT_DIR/agents/tester.md"              ~/.claude/agents/tester.md
-install_file "$SCRIPT_DIR/agents/watcher.md"            ~/.claude/agents/watcher.md
+# Agents and commands install dynamically -- adding a new agents/<name>.md or
+# commands/<name>.md to the repo needs no installer edit, just a re-run.
+AGENT_COUNT=0
+for agent_src in "$SCRIPT_DIR/agents"/*.md; do
+  install_file "$agent_src" ~/.claude/agents/"$(basename "$agent_src")"
+  AGENT_COUNT=$((AGENT_COUNT + 1))
+done
 
-install_file "$SCRIPT_DIR/commands/agentic.md"           ~/.claude/commands/agentic.md
-install_file "$SCRIPT_DIR/commands/init-agentic.md"      ~/.claude/commands/init-agentic.md
-install_file "$SCRIPT_DIR/commands/handoff.md"           ~/.claude/commands/handoff.md
-install_file "$SCRIPT_DIR/commands/blocker.md"           ~/.claude/commands/blocker.md
-install_file "$SCRIPT_DIR/commands/known-issue.md"       ~/.claude/commands/known-issue.md
+COMMAND_COUNT=0
+for cmd_src in "$SCRIPT_DIR/commands"/*.md; do
+  install_file "$cmd_src" ~/.claude/commands/"$(basename "$cmd_src")"
+  COMMAND_COUNT=$((COMMAND_COUNT + 1))
+done
 
 install_file "$SCRIPT_DIR/hooks/orchestrator.sh"         ~/.claude/hooks/orchestrator.sh
 
@@ -257,7 +254,7 @@ echo "--- Summary ---"
 echo ""
 
 SKILL_COUNT="${#INSTALLED_SKILLS[@]}"
-CORE_COUNT=15
+CORE_COUNT=$((2 + AGENT_COUNT + COMMAND_COUNT))  # AGENTIC.md + hook + agents + commands
 if [ "$LINK" -eq 1 ]; then
   echo "Framework files: linked (dev mode) -- $CORE_COUNT core symlinks + $SKILL_COUNT skill(s) to $SCRIPT_DIR"
 else

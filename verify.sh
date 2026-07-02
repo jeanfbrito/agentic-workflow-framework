@@ -24,33 +24,26 @@ check() {
 }
 
 # ---------------------------------------------------------------------------
-# Check 1 -- 15 framework files exist
+# Check 1 -- every repo framework file is installed in ~/.claude/
+#            (list derived from repo contents, so new agents/commands are
+#             covered automatically)
 # ---------------------------------------------------------------------------
 
 FILES=(
   ~/.claude/AGENTIC.md
-  ~/.claude/agents/planner.md
-  ~/.claude/agents/auditor.md
-  ~/.claude/agents/finder.md
-  ~/.claude/agents/researcher.md
-  ~/.claude/agents/builder-fast.md
-  ~/.claude/agents/builder-trivial.md
-  ~/.claude/agents/builder-smart.md
-  ~/.claude/agents/reviewer.md
-  ~/.claude/agents/tester.md
-  ~/.claude/agents/watcher.md
-  ~/.claude/commands/agentic.md
-  ~/.claude/commands/init-agentic.md
-  ~/.claude/commands/handoff.md
-  ~/.claude/commands/blocker.md
-  ~/.claude/commands/known-issue.md
   ~/.claude/hooks/orchestrator.sh
 )
+for f in "$SCRIPT_DIR"/agents/*.md; do
+  FILES+=( ~/.claude/agents/"$(basename "$f")" )
+done
+for f in "$SCRIPT_DIR"/commands/*.md; do
+  FILES+=( ~/.claude/commands/"$(basename "$f")" )
+done
 ALL_FILES=0
 for f in "${FILES[@]}"; do
   [ -f "$f" ] || { ALL_FILES=1; break; }
 done
-check "15 framework files exist in ~/.claude/" "$ALL_FILES"
+check "${#FILES[@]} framework files exist in ~/.claude/" "$ALL_FILES"
 
 # ---------------------------------------------------------------------------
 # Check 2 -- orchestrator.sh is executable
@@ -147,9 +140,11 @@ for c in "${COMMANDS[@]}"; do
 done
 check "all 5 command files exist in commands/" "$MISSING_COMMANDS"
 
-# 7d -- skills exist with valid frontmatter (--- ... description:)
-for s in agentic-workflow personal-engineering-rules; do
-  SKILL_FILE="$SCRIPT_DIR/skills/$s/SKILL.md"
+# 7d -- every repo skill has a SKILL.md with valid frontmatter (--- ... description:)
+for skill_dir in "$SCRIPT_DIR/skills"/*/; do
+  [ -d "$skill_dir" ] || continue
+  s="$(basename "$skill_dir")"
+  SKILL_FILE="$skill_dir/SKILL.md"
   if [ -f "$SKILL_FILE" ] \
      && head -n 1 "$SKILL_FILE" | grep -qx -- '---' \
      && grep -q '^description:' "$SKILL_FILE"; then
@@ -164,14 +159,16 @@ test -f "$SCRIPT_DIR/hooks/orchestrator.sh"
 check "hooks/orchestrator.sh exists in repo" "$?"
 
 # ---------------------------------------------------------------------------
-# Check 8 -- installed skill SKILL.md files exist in ~/.claude/skills/
+# Check 8 -- every repo skill is installed in ~/.claude/skills/
+#            (list derived from repo contents)
 # ---------------------------------------------------------------------------
 
-test -f ~/.claude/skills/agentic-workflow/SKILL.md
-check "~/.claude/skills/agentic-workflow/SKILL.md exists" "$?"
-
-test -f ~/.claude/skills/personal-engineering-rules/SKILL.md
-check "~/.claude/skills/personal-engineering-rules/SKILL.md exists" "$?"
+for skill_dir in "$SCRIPT_DIR/skills"/*/; do
+  [ -d "$skill_dir" ] || continue
+  s="$(basename "$skill_dir")"
+  test -f ~/.claude/skills/"$s"/SKILL.md
+  check "~/.claude/skills/$s/SKILL.md exists" "$?"
+done
 
 # ---------------------------------------------------------------------------
 # Check 9 -- settings.json permissions.allow contains framework globs and
