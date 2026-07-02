@@ -89,10 +89,15 @@ Exploration order for any non-trivial task:
 
 - Never mark a task complete without proving it works.
 - Run tests, check logs, demonstrate correctness.
+- **Runtime path, not proxy signals**: Verify through the path the user actually exercises — the real quit handler (Cmd+Q), a live app launch, a real browser event — never a stand-in that bypasses the code under test (SIGTERM instead of quit handlers, mocked entry points, direct function calls around the wiring). A passing proxy is not verification.
+- **UNVERIFIED is a valid verdict**: If runtime verification is blocked (app won't launch, environment missing, extension disconnected), state exactly what's blocking and mark the fix **UNVERIFIED**. Never imply success from code inspection or mocked tests alone.
+- **Mocks are a starting point, not proof**: For behavior mocks can hide (LLM output handling, symlink/global-command behavior, IPC, process lifecycle), require a live/integration check. If only mocked tests ran, say so explicitly.
+- **Verification scope = DoD scope**: Run only the checks the Definition of Done requires. Don't launch full test suites or extra background runs when the task asks for less ("make the PR clean" ≠ "run everything") — confirm scope before expanding it.
+- **Reach check**: If the verification loop cannot close on this machine (user-side hardware, physically connected devices, user-only auth/credentials), do NOT probe locally — it can never succeed. Give the user the exact commands to run and interpret their pasted output. Recognize this early, not after N failed local probes.
 - For UI changes: use screenshots/browser automation to verify rendering.
 - Long or noisy verification runs (test suites, builds, server smoke-boots) go through `watcher` so that output stays out of the orchestrator context.
 - Ask yourself: "Would a senior engineer approve this?"
-- Don't push validation work to the user.
+- Don't push validation work to the user — except the reach check above, where the target is physically theirs.
 
 ## Agent Roles
 
@@ -243,5 +248,7 @@ project-root/
 | Before planner sees implementation | `reviewer` (smart) |
 | Verifying done criteria | `tester` (fast) after builders |
 | Running a server / slow build / long noisy process | `watcher` (haiku) — returns a digest, keeps output out of context |
+| Runtime verification blocked (won't launch, env missing) | Mark **UNVERIFIED** + state the blocker — never imply success |
+| Target is user-side hardware / device / auth | Give user exact commands, interpret their pasted output — don't probe locally |
 | Problem survived 2 failed attempts | Dispatch `auditor` to re-diagnose |
 | Simple bug fix, single session | None of this — just fix it |
