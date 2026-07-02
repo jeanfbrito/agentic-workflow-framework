@@ -135,6 +135,7 @@ Rule of thumb: "Where is X in the code?" → finder. "How does library Y work?" 
 - `/handoff <task-name>` — write a cross-session handoff from current session context
 - `/blocker <summary>` — append a decision blocker in canonical format and halt
 - `/known-issue <summary>` — append to `docs/KNOWN_ISSUES.md`
+- `/qq <question>` — quick side question answered by haiku in one fast turn (full conversation context, read-only tools); repeat `/qq` to continue the side thread. Session model untouched.
 
 ## Tier semantics
 

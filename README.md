@@ -8,7 +8,7 @@ Lightweight multi-agent orchestration conventions for Claude Code.
 
 - **1 spec document** (`~/.claude/AGENTIC.md`) -- the full framework spec imported into every session via `CLAUDE.md`
 - **10 subagent definitions** in `~/.claude/agents/`: planner, auditor, reviewer, builder-smart, builder-fast, builder-trivial, finder, researcher, tester, watcher
-- **5 slash commands** in `~/.claude/commands/`: `/agentic`, `/init-agentic`, `/handoff`, `/blocker`, `/known-issue`
+- **6 slash commands** in `~/.claude/commands/`: `/agentic`, `/init-agentic`, `/handoff`, `/blocker`, `/known-issue`, `/qq`
 - **1 reinforcement hook** (`~/.claude/hooks/orchestrator.sh`) -- fires on UserPromptSubmit to prevent Orchestrator drift
 - **2 `settings.json` hook entries** -- SessionStart (blocker/handoff scanner) + UserPromptSubmit (orchestrator reinforcement)
 - **1 `CLAUDE.md` import line** -- `@AGENTIC.md` so the spec loads globally in every Claude Code session
@@ -105,6 +105,7 @@ project-root/
 | `/handoff <task-name>` | Write a cross-session handoff from current session context. |
 | `/blocker <summary>` | Log an unresolved blocker in canonical format and halt. |
 | `/known-issue <summary>` | Append a persistent platform constraint to `docs/KNOWN_ISSUES.md`. |
+| `/qq <question>` | Quick side question answered by a fast/cheap model (haiku) in one turn with full conversation context — repeat `/qq` to continue the side thread; session model untouched. |
 
 ---
 
