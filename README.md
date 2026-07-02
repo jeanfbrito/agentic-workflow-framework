@@ -13,7 +13,7 @@ Lightweight multi-agent orchestration conventions for Claude Code.
 - **2 `settings.json` hook entries** -- SessionStart (blocker/handoff scanner) + UserPromptSubmit (orchestrator reinforcement)
 - **1 `CLAUDE.md` import line** -- `@AGENTIC.md` so the spec loads globally in every Claude Code session
 - **2 skills** in `~/.claude/skills/`: agentic-workflow and personal-engineering-rules
-- **4 permission globs** in `~/.claude/settings.json`: Write/Edit for `.localdev/workflow/**` and `docs/KNOWN_ISSUES.md`
+- **6 permission globs** in `~/.claude/settings.json`: Write/Edit for `.localdev/workflow/**`, `.localdev/workflow/handoffs/**`, and `docs/KNOWN_ISSUES.md`
 
 ---
 
@@ -44,7 +44,7 @@ The plugin sandbox cannot edit `~/.claude/CLAUDE.md` or `settings.json`, so the 
 - **Always-on conventions**: a SessionStart hook injects `AGENTIC.md` into every session's context (it no-ops when the shell installer's `@AGENTIC.md` import is present, so nothing loads twice).
 - **Permissions**: a PreToolUse hook auto-allows Write/Edit on `.localdev/workflow/**` and `docs/KNOWN_ISSUES.md`, mirroring the permission globs `install.sh` grants. All other paths follow the normal permission flow.
 
-Both install paths are functionally equivalent; Option 1 additionally writes the import/globs into your `~/.claude/` config directly.
+Both paths land on the same conventions but wire them up differently: the plugin path relies on its own hooks (context injection, orchestrator reinforcement, permission auto-allow) since it cannot touch `~/.claude/CLAUDE.md` or `settings.json`; the shell path instead writes the `@AGENTIC.md` import into `CLAUDE.md` and the permission globs directly into `settings.json`. Same end behavior via different mechanisms.
 
 **Option 1: clone and run**
 
@@ -56,9 +56,7 @@ cd ~/agentic-workflow-framework
 
 Pass `--yes` / `-y` to skip the confirmation prompt. Pass `--link` to symlink instead of copy (dev mode — edits to the repo are reflected immediately).
 
-**Option 2: agent-driven (Claude Code)**
-
-Paste the raw URL of `install.md` into a Claude Code session. The agent reads the file and executes each step, prompting you for confirmation before writing any files.
+> The agent-driven self-installer has been retired (its embedded file copies drifted from the source of truth). Use the plugin marketplace path or the shell installer above.
 
 ---
 
@@ -68,13 +66,14 @@ Paste the raw URL of `install.md` into a Claude Code session. The agent reads th
 ./uninstall.sh
 ```
 
-Removes the framework files, installed skills, and permission globs. Strips the hook entries and `@AGENTIC.md` import from `~/.claude/`. Backs up `CLAUDE.md` and `settings.json` before modifying them. Does not remove the `~/.claude/agents/`, `~/.claude/commands/`, `~/.claude/hooks/`, or `~/.claude/skills/` directories themselves.
+Removes the framework files, installed skills, and permission globs. By default this is a surgical strip: it removes only the framework's hook entries, permission globs, and `@AGENTIC.md` import, preserving anything else you've added to `CLAUDE.md` or `settings.json` since installing. Pass `--restore-backup` to instead wholesale-restore `CLAUDE.md` and `settings.json` from the pre-install backup snapshot, discarding all edits made since install. Does not remove the `~/.claude/agents/`, `~/.claude/commands/`, `~/.claude/hooks/`, or `~/.claude/skills/` directories themselves.
 
 ---
 
 ## Model mapping
 
-- **Opus** (reasoning model) -- Planner, Auditor, and builder-smart: deep deliberation, architectural decisions, and complex implementation a fast builder would botch.
+- **Inherit** (rides the session model) -- Planner and Auditor: deep deliberation and architectural decisions at whatever capability the session is already running.
+- **Opus** -- builder-smart: complex implementation a fast builder would botch.
 - **Sonnet** (smart model) -- Reviewer and builder-fast: quality-gate judgment and single scoped edits.
 - **Haiku** (fast model) -- builder-trivial, Finder, Researcher, Tester, and Watcher: speed/cost-optimized mechanical tasks, run many in parallel.
 
