@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Shellcheck
+        # SC2088 (tilde in quotes not expanded) is accepted throughout the
+        # install/uninstall scripts -- they intentionally document literal
+        # paths like "~/.claude/..." in echo strings.
+        run: shellcheck -e SC2088 install.sh verify.sh uninstall.sh hooks/*.sh
+
+      - name: Bash syntax check
+        run: |
+          for f in install.sh verify.sh uninstall.sh hooks/*.sh; do
+            bash -n "$f"
+          done
+
+      - name: Validate plugin JSON
+        run: |
+          jq . .claude-plugin/plugin.json
+          jq . .claude-plugin/marketplace.json
+
+      - name: Agent count consistency
+        run: |
+          AGENT_COUNT=$(ls agents/*.md | wc -l | tr -d ' ')
+          CLAIMED=$(grep -oE '[0-9]+ subagent' .claude-plugin/plugin.json | grep -oE '[0-9]+')
+          echo "agents/*.md: $AGENT_COUNT files -- plugin.json claims: $CLAIMED subagent roles"
+          if [ "$AGENT_COUNT" != "$CLAIMED" ]; then
+            echo "Mismatch: agents/*.md has $AGENT_COUNT files but plugin.json claims $CLAIMED subagent roles" >&2
+            exit 1
+          fi
+
+      - name: Set temp HOME for install/uninstall smoke tests
+        run: echo "HOME=$(mktemp -d)" >> "$GITHUB_ENV"
+
+      - name: Install smoke test
+        run: bash install.sh --yes
+
+      - name: Verify smoke test
+        run: bash verify.sh
+
+      - name: Uninstall smoke test
+        run: bash uninstall.sh --yes
