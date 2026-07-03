@@ -2,6 +2,7 @@
 name: tester
 description: Runs tests, checks logs, validates Definition of Done criteria after Builders complete. Read-only (except for test cache/snapshot artifacts). Parallel-safe across different tasks.
 model: haiku
+effort: high
 tools: Read, Grep, Glob, Bash
 ---
 

@@ -2,6 +2,7 @@
 name: builder-trivial
 description: Repetitive bulk edits — the SAME change applied across many sites (5+ files/entries): mass renames, bulk i18n/config additions, stub generation. One fully-specified transform, zero per-site decisions. Cheapest tier (haiku). Pick this only when the task is "apply X to N places", not "build one small thing".
 model: haiku
+effort: high
 tools: Read, Edit, Write, Grep, Glob, Bash
 ---
 

@@ -19,13 +19,14 @@ Lightweight multi-agent orchestration conventions for Claude Code.
 
 ## Operational Tools
 
-This framework pairs well with three external tools (all optional but recommended):
+This framework treats three external tools as first-class infrastructure:
 
-- **GitNexus** — code graph queries, impact analysis, call-chain tracing. Query before grepping.
-- **context-mode** — sandbox large outputs (file reads, logs, test runs) so raw data never enters the context window.
+- **GitNexus** — mandatory first stop for structural code questions (call chains, impact, architecture) when the repo is indexed. Query before grepping.
+- **context-mode** — mandatory sandbox for large outputs (file reads, logs, test runs) so raw data never enters the context window.
+- **context7** — mandatory verification of library/API/CLI behavior before asserting it; never from training memory.
 - **RTK** — token-filtered shell command proxy for routine ops.
 
-These are not bundled. Install separately. The framework's subagents and slash commands work without them — they just produce sharper results when present.
+These are not bundled. Install separately. **Fail-loud rule**: when one of their MCP calls errors, the orchestrator and every subagent report the exact tool + verbatim error to the user instead of silently degrading to raw grep / web / training-data recall — silent fallback is how hallucinations ship.
 
 ---
 
@@ -72,10 +73,12 @@ Removes the framework files, installed skills, and permission globs. By default 
 
 ## Model mapping
 
-- **Inherit** (rides the session model) -- Planner and Auditor: deep deliberation and architectural decisions at whatever capability the session is already running.
-- **Opus** -- builder-smart: complex implementation a fast builder would botch.
-- **Sonnet** (smart model) -- Reviewer and builder-fast: quality-gate judgment and single scoped edits.
-- **Haiku** (fast model) -- builder-trivial, Finder, Researcher, Tester, and Watcher: speed/cost-optimized mechanical tasks, run many in parallel.
+Doctrine: **opus is the general, sonnet the soldiers, haiku the scouts.**
+
+- **Inherit** (rides the session model) -- Planner and Auditor: the general — plans and diagnoses, doesn't fight; deep deliberation at whatever capability the session is already running.
+- **Opus** -- builder-smart: the general picking up a weapon — exception only, when a sonnet attempt failed or the code demands strategy-grade reasoning.
+- **Sonnet** (smart model) -- Reviewer and builder-fast: the soldiers — primary implementation and quality-gate judgment.
+- **Haiku** (fast model) -- builder-trivial, Finder, Researcher, Tester, and Watcher: the scouts — cheap, fast, run many in parallel.
 
 ---
 

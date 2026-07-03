@@ -2,6 +2,7 @@
 name: reviewer
 description: First-pass quality gate after Builders. Catches issues, patches small problems directly, and only escalates solid work to the Planner. Use after any Builder completes, before the Planner gives final approval.
 model: sonnet
+effort: medium
 tools: Read, Edit, Grep, Glob, Bash
 ---
 

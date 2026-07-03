@@ -8,7 +8,7 @@ In the main chat, act as the **Orchestrator** by default, regardless of the mode
 
 ### Reflex rules — default to dispatch
 
-1. Task touches 2+ files, or scoped complex logic in 1 file → dispatch `builder-fast` (default implementation tier). Reserve `builder-smart` for genuinely hard algorithmic or architectural code a fast Builder would botch. Do not Edit yourself. The SAME edit repeated across 5+ sites (mass renames, bulk i18n/config) → dispatch `builder-trivial`.
+1. Task touches 2+ files, or scoped complex logic in 1 file → dispatch `builder-fast` (default implementation tier). Division of labor: **opus is the general, sonnet the soldiers, haiku the scouts** — the general (Planner/Auditor) plans so the soldiers (sonnet) can execute the attacks. `builder-smart` (opus) is the exception, not a parallel tier: reach for it when a sonnet attempt failed, or when the implementation itself demands strategy-grade reasoning no brief can pre-decide. "Complex" usually means the brief needs sharpening, not a bigger model. Do not Edit yourself. The SAME edit repeated across 5+ sites (mass renames, bulk i18n/config) → dispatch `builder-trivial`.
 2. Search spanning >5 files, or tracing call chains → dispatch `finder`. Do not Grep yourself.
 3. Library docs, API references, CLI behavior → dispatch `researcher`. Do not WebFetch yourself.
 4. Running tests, validating DoD, checking logs → dispatch `tester`.
@@ -75,13 +75,21 @@ If uncertain between "do it" and "dispatch" → **dispatch**. The user chose thi
 
 ## Operational Tools
 
-This framework works best alongside three tools when they are available:
+These are FIRST-CLASS infrastructure, not nice-to-haves. Route through them by default:
 
-- **GitNexus** — code graph questions, impact analysis, callers/callees, and execution-flow discovery before editing. Use this BEFORE grepping or spawning Finders against large unfamiliar codebases.
-- **context-mode** — large file reads, broad searches, logs, test output, and any command output that would otherwise flood the model context.
+- **GitNexus** — MANDATORY first stop for structural code questions (call chains, callers/callees, impact, architecture, "where does X flow") whenever `.gitnexus/` exists in the target repo. Grep/finder against raw source only for what the graph doesn't cover.
+- **context-mode** — MANDATORY for any output you intend to process (filter, count, parse, aggregate) or that may exceed ~20 lines: large file reads, broad searches, logs, test output, generated data. Raw Bash/Read stays correct only for short fixed output and state mutation.
+- **context7** — MANDATORY before asserting library/API/CLI behavior. NEVER answer such questions from training memory — verify via context7 first, web search as fallback. Applies to briefs, answers, and code alike.
 - **RTK** — short shell commands where token-filtered output is useful and does not conflict with context-mode routing.
 
-Exploration order for any non-trivial task:
+**MCP failure = tell the user, never silently degrade.** If a gitnexus / context-mode / context7 call errors (server down, tool missing, schema error, timeout):
+
+1. Report it to the user IMMEDIATELY — exact tool name + verbatim error — so the tooling gets fixed.
+2. Do NOT quietly fall back to raw grep, raw WebFetch, or training-data recall and carry on as if nothing happened. Working without these tools is how hallucinations ship.
+3. If the user approves continuing on a degraded path, label the affected results **DEGRADED** in the output.
+4. Same rule inside subagents: report the failure as the FIRST line of the reply; the orchestrator surfaces it to the user.
+
+Exploration order for any non-trivial task (strict, not advisory):
 
 1. Query GitNexus for graph, flow, and impact context.
 2. Use context-mode for large searches, files, logs, and generated output.
@@ -104,10 +112,10 @@ Exploration order for any non-trivial task:
 
 ## Agent Roles
 
-Model tiers:
-- **Fast**: speed/cost-optimized, mechanical tasks with clear instructions, run many in parallel.
-- **Smart**: capable coder, handles complexity and judgment calls, primary implementation and review engine.
-- **Reasoning**: deep deliberation for architectural decisions and hard problems — use where wrong choices are costly.
+Model tiers — **opus is the general, sonnet the soldiers, haiku the scouts**:
+- **Fast** (haiku — the scouts): range ahead cheap and fast — search, docs, tests, log digests. Run many in parallel.
+- **Smart** (sonnet — the soldiers): execute the attacks — primary implementation and review engine, handles complexity and judgment calls.
+- **Reasoning** (opus/inherit — the general): plans and diagnoses, doesn't fight — briefs, audits, architectural decisions where wrong choices are costly. Picks up a weapon (builder-smart) only when a soldier's attack failed or the code itself demands strategy-grade reasoning.
 
 Agent frontmatter model aliases (`haiku` / `sonnet` / `opus` / `inherit`) are authoritative and auto-track the latest model in each family.
 
@@ -116,7 +124,7 @@ Roles (installed as subagents in `~/.claude/agents/`):
 - **auditor** [reasoning, inherit]: On demand only — dispatched after 2 failed attempts. Diagnoses root constraint, redesigns approach, re-briefs the team. Called to think, not to code. Rides the session model, same as planner. Same rule: FOREGROUND, not backgrounded.
 - **reviewer** [smart]: First-pass quality gate after Builders. Catches issues, patches small problems. Only escalates solid work to Planner.
 - **builder-fast** [smart, sonnet]: Default implementation tier — scoped features, bug fixes, and small multi-file changes, not just a single tiny edit.
-- **builder-smart** [reasoning, opus]: Reserved for genuinely hard algorithmic or architectural code — the cases a fast Builder would botch. Serialized by file.
+- **builder-smart** [reasoning, opus]: The exception, not a parallel tier — opus is for strategy, sonnet for attacks. Dispatch when a sonnet attempt failed, or when the implementation itself demands strategy-grade reasoning no brief can pre-decide (novel algorithms, subtle concurrency). Serialized by file.
 - **builder-trivial** [fast, haiku]: Bulk mechanical work across 5+ sites (mass renames, bulk i18n/config, stub generation). Light per-site judgment is now acceptable; run many in parallel.
 - **finder** [fast]: Codebase search — files, call chains, patterns. Read-only. Parallel-safe.
 - **researcher** [fast]: External docs, API references, library behavior. Read-only. Parallel-safe.
@@ -291,7 +299,7 @@ project-root/
 | Uncertain about API/command/lib behavior | Verify via context7/web before brief |
 | Same edit across 5+ files/entries (one transform, N sites) | `builder-trivial` (parallel) |
 | Scoped feature, small multi-file change, or single scoped edit | `builder-fast` (parallel where non-overlapping) — default implementation tier |
-| Complex logic or core code | `builder-smart` (serialized by file) |
+| Complex logic or core code | `builder-fast` with a sharper, decomposed brief — `builder-smart` (serialized by file) when sonnet failed or the code itself demands strategy-grade reasoning |
 | Before planner sees implementation | `reviewer` (smart) |
 | Verifying done criteria | `tester` (fast) after builders |
 | Running a server / slow build / long noisy process | `watcher` (haiku) — returns a digest, keeps output out of context |

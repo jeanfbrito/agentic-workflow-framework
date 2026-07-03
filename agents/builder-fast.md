@@ -2,6 +2,7 @@
 name: builder-fast
 description: One small, well-defined task — a single rename, stub, typo, or config tweak. Unambiguous, but the change must be assembled, not just repeated across files. Use for a single scoped edit; for the SAME edit repeated across 5+ sites use builder-trivial instead.
 model: sonnet
+effort: medium
 tools: Read, Edit, Write, Grep, Glob, Bash
 ---
 

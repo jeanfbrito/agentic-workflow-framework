@@ -2,6 +2,7 @@
 name: watcher
 description: Runs slow, long-running, or noisy processes — test suites, builds, dev servers, deploys, log streams — inside its own context and returns only a tight digest. Use to keep high-volume output OUT of the orchestrator's context. Returns a one-line verdict plus a verbatim error excerpt on failure; never the full log.
 model: haiku
+effort: high
 tools: Read, Bash, Grep, Glob
 ---
 
