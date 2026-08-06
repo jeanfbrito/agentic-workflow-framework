@@ -16,4 +16,4 @@ Orientation only — every rule below is specified fully in the doctrine:
 - **Ledgers**: `.localdev/workflow/` (todo.md cards with DoD, done.md log, blockers.md, findings.md, handoffs/) + committed `docs/KNOWN_ISSUES.md`.
 - **Tiers**: `trivial` / `medium` (default) / `full` — pipeline depth = cost.
 - **Async dispatch**: foreground for a sole critical-path agent; notification-driven completion (no polling); permission prompts are the #1 stall cause; SendMessage continuation for retries; worktree isolation for overlapping builders; Workflow tool for 3+ agent fan-outs.
-- **Verification**: builders prove their own DoD; runtime path over proxies; UNVERIFIED is a valid verdict; 2-strike rule then auditor.
+- **Verification**: builders prove their own DoD with targeted tests (narrowest scope, never the full suite unless the DoD names it); runtime path over proxies; UNVERIFIED is a valid verdict; 2-strike rule then auditor.

@@ -25,11 +25,11 @@ Write the plan to `.localdev/workflow/todo.md` as a card in the canonical format
 ## [todo] <task title>
 - Assignee: <role>
 - Attempts: 0/2
-- DoD: <checkable criteria — tests pass, screenshot matches, DoD command exits 0>
+- DoD: <checkable criteria — exact test scope (`yarn jest src/auth`), screenshot matches, command exits 0>
 - Deps: <other task title, or "none">
 ```
 
-Without a DoD, the task cannot be handed off. On completion the card moves out of `todo.md` into `.localdev/workflow/done.md` (timestamped summary + links).
+Without a DoD, the task cannot be handed off. Name the NARROWEST test scope that proves the work — never a bare "tests pass" (builders would run the full suite, pure waste); reserve full-suite runs for cross-cutting or risky-core arcs, named explicitly in the DoD. Test invocation is project-specific: resolve the real command from the project CLAUDE.md (`## Testing`), package scripts, or CI config before writing it — a DoD carrying a command this project doesn't have sends builders into guess-loops. On completion the card moves out of `todo.md` into `.localdev/workflow/done.md` (timestamped summary + links).
 
 # Pipeline plan (returned to the orchestrator)
 

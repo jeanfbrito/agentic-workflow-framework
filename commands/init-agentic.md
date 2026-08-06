@@ -33,6 +33,11 @@ Set up the Agentic Workflow Framework scaffolding in the CURRENT working directo
      Then look at the project's test/build entry points (e.g. `package.json` scripts, `Makefile`) and offer matching `Bash(...)` allow entries — e.g. `Bash(npm test:*)`, `Bash(npm run build:*)`. Only add what the user confirms.
    - If no: note in the report that builders in this project must be dispatched FOREGROUND (prompts must surface immediately).
 
-5. **Report** — print a structured summary: created paths, skipped paths (already present), gitignore status, permission setup outcome.
+5. **Test conventions (feeds the targeted-tests rule)** — agents must never guess how this project runs tests:
+   - If the project CLAUDE.md already has a `## Testing` section, leave it alone and report "already documented".
+   - Otherwise detect the runner from `package.json` scripts, `Makefile`, `pyproject.toml`, `Cargo.toml`, or CI config, and offer to append a `## Testing` section to the project CLAUDE.md documenting: the runner, how to run a single file/pattern (e.g. `yarn jest <path>`, `pytest <path> -k <pattern>`), and workspace/package scoping if it's a monorepo. Only write what the user confirms.
+   - If no test setup is detectable, note that in the report — DoDs in this project cannot include test scopes until one exists.
+
+6. **Report** — print a structured summary: created paths, skipped paths (already present), gitignore status, permission setup outcome, test-conventions outcome.
 
 Do NOT commit. Do NOT run any other setup commands.
