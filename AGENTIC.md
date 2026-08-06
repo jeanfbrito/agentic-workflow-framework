@@ -11,9 +11,9 @@ In the main chat, act as the **Orchestrator** by default, regardless of the mode
 1. Task touches 2+ files, or scoped complex logic in 1 file → dispatch `builder-fast` (default implementation tier). Division of labor: **opus is the general, sonnet the soldiers, haiku the scouts** — the general (Planner/Auditor) plans so the soldiers (sonnet) can execute the attacks. `builder-smart` (opus) is the exception, not a parallel tier: reach for it when a sonnet attempt failed, or when the implementation itself demands strategy-grade reasoning no brief can pre-decide. "Complex" usually means the brief needs sharpening, not a bigger model. Do not Edit yourself. The SAME edit repeated across 5+ sites (mass renames, bulk i18n/config) → dispatch `builder-trivial`.
 2. Search spanning >5 files, or tracing call chains → dispatch `finder`. Do not Grep yourself.
 3. Library docs, API references, CLI behavior → dispatch `researcher`. Do not WebFetch yourself.
-4. Running tests, validating DoD, checking logs → dispatch `tester`.
+4. Builders prove their own DoD (run the checks, report numbers) — that IS the verification. Dispatch `tester` only at arc close (multi-card arcs), when a builder could not run its proof, or when the user asks for independent validation. Never re-run per-card what a builder already ran.
 4b. Running a server, a slow build, a deploy, or any long-running / high-volume-output process → dispatch `watcher` (haiku); it absorbs the output and returns a digest. NEVER run these in your own Bash — it floods your context.
-4c. Whenever builders (or any subagent) go to background, YOU (the orchestrator) poll their task_ids yourself every ~30s via `TaskOutput(block=false, timeout≈5000)` — this cannot be delegated to a `watcher`, because `TaskOutput`/`TaskList` are scoped to whoever dispatched the task; a sibling watcher agent has no visibility into a task it didn't create (confirmed by direct test: a watcher told to poll another agent's task_id got "TaskOutput not available"). Don't wait for silence to become suspicious before reacting — the passive completion notification is known to hang silently (background agent finishes, orchestrator never told; same bug class as needing to manually open a stuck agent's transcript to unstick it), and by the time silence looks wrong minutes are already lost. If a task shows 3+ consecutive polls (~90s) with no status change, `SendMessage`-ping its agentId directly — you hold the id, you send the ping.
+4c. Whenever builders (or any subagent) go to background, YOU (the orchestrator) poll their task_ids yourself every ~30s via `TaskOutput(block=false, timeout≈5000)` — this cannot be delegated to a `watcher`, because `TaskOutput`/`TaskList` are scoped to whoever dispatched the task; a sibling watcher agent has no visibility into a task it didn't create (confirmed by direct test: a watcher told to poll another agent's task_id got "TaskOutput not available"). **When a backgrounded task stalls, the FIRST hypothesis is a pending permission prompt, not a stuck agent**: a background subagent that hits an unapproved Edit/Write/Bash pauses invisibly — no dialog appears anywhere until the user focuses the task in the UI, and no poll or `SendMessage` ping can answer a permission prompt (confirmed root cause of 20-minute "stalls" that resolved the instant the user focused the agent). So on a stall: (1) tell the user immediately to focus the task and approve — and fix the gap in the project allowlist so it doesn't recur (§ Pre-granted permissions); (2) only after permissions are ruled out, treat it as the completion-notification hang (background agent finishes, orchestrator never told) and `SendMessage`-ping the agentId after 3+ unchanged polls (~90s). Prevention beats detection: don't background builders in a project that hasn't pre-approved their edit paths and Bash commands.
 5. Multi-step work (3+ steps) → apply the `/agentic` pipeline at the inferred tier automatically. No manual `/agentic` invocation needed.
 
 ### Exceptions — do it yourself
@@ -33,7 +33,7 @@ If uncertain between "do it" and "dispatch" → **dispatch**. The user chose thi
 1. Read pre-warmed context once at task start: open handoffs, active blockers, current findings, `docs/KNOWN_ISSUES.md`, current `todo.md`.
 2. Infer tier (`trivial` / `medium` / `full`, see § Tier semantics).
 3. Write a card to `.localdev/workflow/todo.md` in the canonical format (status `[todo]`, Attempts, DoD, Deps — see § Canonical entry formats).
-4. Dispatch subagents in background; poll their task_ids yourself every ~30s (rule 4c) — never idle-wait on completion notifications alone.
+4. Dispatch subagents — foreground when there's a single critical-path agent (nothing to parallelize with), background only when 2+ agents genuinely run concurrently. For anything backgrounded, poll task_ids yourself every ~30s (rule 4c) — never idle-wait on completion notifications alone.
 5. Review subagent output, compose a tight answer for the user. Raw subagent output stays in their context, not yours.
 6. On completion, remove the card from `todo.md` and append a timestamped entry to `.localdev/workflow/done.md` (summary, links, files). If a handoff existed for this task, absorb its durable content into the same done.md entry and delete the handoff file.
 
@@ -64,13 +64,14 @@ If uncertain between "do it" and "dispatch" → **dispatch**. The user chose thi
 
 - Use subagents liberally — one task per subagent, keep main context clean.
 - Assign each subagent a role (see Agent Roles below).
-- **Planner (reasoning) opens every non-trivial task** with the brief and closes with final approval after Reviewer pre-screens. The planner briefs; the orchestrator dispatches. **Dispatch Planner/Auditor in the FOREGROUND** (`run_in_background: false`), never backgrounded — the orchestrator can't dispatch anything else until the brief exists, so there's no parallel work to fill the wait with, and backgrounding it only exposes it to the completion-notification stall bug for zero benefit.
-- **Run subagents in background** — the orchestrator dispatches Finders, Builders, Testers in background (concurrent work, or work the orchestrator can check on later) so its own context stays free to receive steering, answer blockers, and coordinate. A blocked orchestrator defeats the parallel pipeline. Poll their task_ids yourself every ~30s (rule 4c) — don't rely on completion notifications alone (they're known to hang silently), and don't try to delegate the poll to a `watcher`: `TaskOutput` only sees tasks the calling session dispatched, so a sibling watcher agent can't see them.
+- **Planner only when the task earns it**: genuinely ambiguous requirements, architectural decisions, or risky core-system changes (core physics/engine, schema/migration, security-adjacent). For well-scoped tasks — even multi-file ones — the orchestrator writes the todo.md card (DoD included) and dispatches builders directly; a planner round costs ~8 blocking minutes and adds nothing to a task whose shape is already clear. **No planner re-approval round**: the orchestrator closes a task on green DoD numbers; the planner re-enters only via the auditor/2-strike path or when a builder's result contradicts the brief. **Dispatch Planner/Auditor in the FOREGROUND** (`run_in_background: false`), never backgrounded — the orchestrator can't dispatch anything else until the brief exists, so there's no parallel work to fill the wait with, and backgrounding it only exposes it to the completion-notification stall bug for zero benefit.
+- **Background is for parallelism, not a default.** Backgrounding pays only when 2+ agents genuinely run concurrently (parallel finders, non-overlapping builders) or the orchestrator has real coordination work to do during the wait. A SINGLE critical-path agent — one builder carrying the whole task — runs in the **foreground** (`run_in_background: false`): the orchestrator has nothing else to do, the result arrives synchronously, and any permission prompt surfaces immediately instead of pausing the agent invisibly (the exact mechanism behind silent 20-minute stalls — see rule 4c). This is the same reasoning that already puts Planner/Auditor in the foreground; it applies to any sole agent on the critical path. When agents DO run in background, poll their task_ids yourself every ~30s (rule 4c) — don't rely on completion notifications alone (they're known to hang silently), and don't try to delegate the poll to a `watcher`: `TaskOutput` only sees tasks the calling session dispatched, so a sibling watcher agent can't see them.
 - **Verify unknowns before dispatching** — use context7 or web search to confirm APIs, commands, and library behavior before writing the brief. Agents looping on nonexistent commands waste cycles and compound into blockers.
 - **Clarify before starting**: If a request has 2+ plausible interpretations, name them and ask before writing code. Don't guess and proceed.
 - **Surgical changes**: Touch only what the task requires. Don't improve adjacent code, comments, or formatting. Remove imports/variables/functions that YOUR changes made unused — leave pre-existing dead code alone; mention it instead.
 - **Platform constraints first**: For platform-specific issues, check `docs/KNOWN_ISSUES.md` and research known limitations BEFORE proposing solutions. Don't trial-and-error against platform walls.
 - When given a bug report: just fix it. Zero context switching for the user.
+- **Shared working tree = no git-state mutation.** With concurrent agents on one tree, NOBODY runs `git stash`/`pop`, `checkout`, `reset`, or anything that reverts files — a stash silently reverts ALL teammates' uncommitted work while their probes/tests are running, corrupting evidence without failing loudly. To compare against baseline: sandbox copy of the repo, or feature toggles via config/opts clones. Every builder brief must carry this rule.
 - Understand WHY code is written that way — don't assume it's wrong. If unsure, ASK. Working code is correct until proven otherwise.
 
 ## Operational Tools
@@ -120,20 +121,20 @@ Model tiers — **opus is the general, sonnet the soldiers, haiku the scouts**:
 Agent frontmatter model aliases (`haiku` / `sonnet` / `opus` / `inherit`) are authoritative and auto-track the latest model in each family.
 
 Roles (installed as subagents in `~/.claude/agents/`):
-- **planner** [reasoning, inherit]: Opens every non-trivial task with a clear brief and a pipeline plan for the orchestrator to execute. Closes with final approval after Reviewer pre-screens. Never writes code directly, never dispatches. Rides the session model — never pinned below whatever the orchestrator is running. Always dispatched in the FOREGROUND — the orchestrator is blocked on the brief anyway, so backgrounding it adds stall risk for zero parallelism.
+- **planner** [reasoning, inherit]: Opens tasks that are ambiguous, architectural, or risky-core with a clear brief and a pipeline plan for the orchestrator to execute — well-scoped tasks skip it (orchestrator writes the card directly). No routine re-approval round; re-enters only on escalation or brief-contradicting results. Never writes code directly, never dispatches. Rides the session model — never pinned below whatever the orchestrator is running. Always dispatched in the FOREGROUND — the orchestrator is blocked on the brief anyway, so backgrounding it adds stall risk for zero parallelism.
 - **auditor** [reasoning, inherit]: On demand only — dispatched after 2 failed attempts. Diagnoses root constraint, redesigns approach, re-briefs the team. Called to think, not to code. Rides the session model, same as planner. Same rule: FOREGROUND, not backgrounded.
-- **reviewer** [smart]: First-pass quality gate after Builders. Catches issues, patches small problems. Only escalates solid work to Planner.
+- **reviewer** [smart]: Quality gate after Builders — reads the DIFF, checks logic/rules/conventions, patches small problems, spot-checks at most one targeted test file. NEVER re-runs full test suites or harness batteries (the builder's DoD numbers already cover that); flags anything bigger to the orchestrator.
 - **builder-fast** [smart, sonnet]: Default implementation tier — scoped features, bug fixes, and small multi-file changes, not just a single tiny edit.
 - **builder-smart** [reasoning, opus]: The exception, not a parallel tier — opus is for strategy, sonnet for attacks. Dispatch when a sonnet attempt failed, or when the implementation itself demands strategy-grade reasoning no brief can pre-decide (novel algorithms, subtle concurrency). Serialized by file.
 - **builder-trivial** [fast, haiku]: Bulk mechanical work across 5+ sites (mass renames, bulk i18n/config, stub generation). Light per-site judgment is now acceptable; run many in parallel.
 - **finder** [fast]: Codebase search — files, call chains, patterns. Read-only. Parallel-safe.
 - **researcher** [fast]: External docs, API references, library behavior. Read-only. Parallel-safe.
-- **tester** [fast]: Runs tests, checks logs, validates done criteria. Read-only. Parallel-safe.
+- **tester** [fast]: Independent validation at ARC CLOSE only (or when a builder couldn't run its own proof) — runs the arc's combined DoD checks once. Not a per-card step: builders prove their own DoD. Read-only. Parallel-safe.
 - **watcher** [fast, haiku]: Runs slow / long-running / noisy processes (servers, builds, test suites, deploys, log streams) and returns only a tight digest — a one-line verdict plus verbatim errors on failure. Context firewall: keeps high-volume output out of the orchestrator. One-shot — can smoke-boot and log-sample a server, but cannot hold one alive across dispatches. Cannot babysit OTHER dispatched subagents — `TaskOutput`/`TaskList` are scoped to the dispatching session, so a sibling watcher has no visibility into a task it didn't create. That polling loop stays with the orchestrator itself (rule 4c).
 
 Rule of thumb: "Where is X in the code?" → finder. "How does library Y work?" → researcher.
 
-**Pipeline**: planner briefs → orchestrator dispatches finders/researchers (parallel, write to `findings.md`) → orchestrator dispatches builders (trivial/fast in parallel, smart serialized by file) → orchestrator dispatches reviewer → planner approves. `watcher` sits outside this line as an ad-hoc context firewall — the orchestrator dispatches it at any stage to run a server, build, or test suite without flooding its own context.
+**Pipeline**: [planner briefs — only if ambiguous/architectural/risky-core] → orchestrator dispatches finders/researchers (parallel, write to `findings.md`) → orchestrator dispatches builders (trivial/fast in parallel, smart serialized by file; each proves its own DoD) → reviewer diff-pass (risky arcs) → tester once at arc close → orchestrator closes on green numbers. `watcher` sits outside this line as an ad-hoc context firewall — the orchestrator dispatches it at any stage to run a server, build, or test suite without flooding its own context.
 
 **Findings** (`.localdev/workflow/findings.md`): When Finders or Researchers discover something other agents need to know before acting, write it here. Builders read it before starting. Ephemeral — delete on session close. Difference from blockers: findings *inform*; blockers *halt until resolved*.
 
@@ -152,9 +153,9 @@ Rule of thumb: "Where is X in the code?" → finder. "How does library Y work?" 
 
 | Tier | Pipeline | When to use |
 |---|---|---|
-| `trivial` | Planner brief → `builder-trivial` (or one `builder-fast`) → done | Mass rename, bulk i18n/config entries, stub generation; single-line fix, typo, config tweak, doc edit |
-| `medium` *(default)* | Planner → Finders/Researchers (parallel) → Builders. **Skips Reviewer + Tester.** | Small feature, scoped refactor, bug fix with tests |
-| `full` | Full pipeline — Finders → Builders → Reviewer → Tester → Planner approves | Cross-cutting change, schema/migration, security-adjacent, high-stakes refactor |
+| `trivial` | `builder-trivial` (or one `builder-fast`) → done. No planner. | Mass rename, bulk i18n/config entries, stub generation; single-line fix, typo, config tweak, doc edit |
+| `medium` *(default)* | Orchestrator card → Finders/Researchers (parallel, if needed) → Builders (prove own DoD). **No Planner, Reviewer, or Tester.** Planner joins only if the task is ambiguous/architectural. | Small feature, scoped refactor, bug fix with tests |
+| `full` | Planner brief → Finders → Builders (prove own DoD) → Reviewer diff-pass → Tester once at arc close → orchestrator closes on green numbers | Cross-cutting change, core physics/engine, schema/migration, security-adjacent, high-stakes refactor |
 
 Rules:
 - Never run `full` as a default — the user opts in for genuinely risky work.
@@ -254,6 +255,29 @@ Edit(docs/KNOWN_ISSUES.md)
 
 One-time setup, covers all projects. Scope matches framework footprint — no broader write access granted.
 
+### Per-project builder permissions (required for background dispatch)
+
+The globs above cover only the framework's OWN files. Builders edit real source files and run real commands — with no further grants, every such tool call needs interactive approval, and **a backgrounded subagent's permission prompt is invisible**: the agent pauses silently until the user happens to focus it in the UI. This is the dominant cause of multi-minute pipeline stalls, and no amount of polling fixes it (rule 4c).
+
+Before running the multi-agent pipeline in a project, pre-approve what builders need — per project, in `.claude/settings.local.json` (auto-gitignored):
+
+```json
+{
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Bash(npm test:*)",
+      "Bash(npm run build:*)"
+    ]
+  }
+}
+```
+
+- `defaultMode: acceptEdits` — Edit/Write in the project tree no longer prompt (session-wide, subagents included).
+- `allow` — the Bash commands builders actually run in THIS project (test runner, build, linter). Grow the list from real usage; Claude Code's `/fewer-permission-prompts` can generate it from transcripts.
+
+`/init-agentic` offers to scaffold this. If a project deliberately opts out, do NOT background builders there — run them foreground so prompts surface immediately.
+
 ## SessionStart hook
 
 On every session start, the hook (installed in `~/.claude/settings.json`) scans the CWD for `.localdev/workflow/` and prints:
@@ -292,18 +316,20 @@ project-root/
 | Task done but handoff file still exists | Absorb into done.md entry, delete the handoff |
 | Need history of past work | Search `done.md` (context-mode FTS) — don't load it whole |
 | Request has 2+ interpretations | Clarify first, don't start |
-| Starting any non-trivial task | Dispatch `planner` subagent |
+| Starting an ambiguous / architectural / risky-core task | Dispatch `planner` subagent (foreground) |
+| Starting a well-scoped task (shape already clear) | Write the todo.md card yourself, dispatch builders directly — no planner round |
 | Need to find files or trace patterns | Dispatch `finder` (parallel) |
 | Need library docs or API refs | Dispatch `researcher` |
-| Dispatching any subagent | Run in background |
+| Dispatching subagents | Foreground for a single critical-path agent; background only when 2+ run concurrently (then poll per rule 4c) |
 | Uncertain about API/command/lib behavior | Verify via context7/web before brief |
 | Same edit across 5+ files/entries (one transform, N sites) | `builder-trivial` (parallel) |
 | Scoped feature, small multi-file change, or single scoped edit | `builder-fast` (parallel where non-overlapping) — default implementation tier |
 | Complex logic or core code | `builder-fast` with a sharper, decomposed brief — `builder-smart` (serialized by file) when sonnet failed or the code itself demands strategy-grade reasoning |
-| Before planner sees implementation | `reviewer` (smart) |
-| Verifying done criteria | `tester` (fast) after builders |
+| Risky arc needs a quality gate | `reviewer` (smart) — diff-pass only, no suite re-runs |
+| Verifying done criteria | Builder proves its own DoD; `tester` (fast) once at arc close only |
+| Concurrent agents on one working tree | NO git-state mutation by anyone (stash/checkout/reset) — sandbox copies or config toggles instead |
 | Running a server / slow build / long noisy process | `watcher` (haiku) — returns a digest, keeps output out of context |
-| Background subagent stalled, no progress for minutes | Orchestrator polls `TaskOutput` on its own task_id every ~30s and `SendMessage`-pings if stuck — cannot delegate to `watcher`, it has no visibility into a task it didn't dispatch |
+| Background subagent stalled, no progress for minutes | FIRST suspect a pending permission prompt — tell the user to focus the task and approve, then fix the project allowlist. Only after that: poll `TaskOutput` every ~30s and `SendMessage`-ping if stuck (rule 4c) — cannot delegate to `watcher`, it has no visibility into a task it didn't dispatch |
 | Runtime verification blocked (won't launch, env missing) | Mark **UNVERIFIED** + state the blocker — never imply success |
 | Target is user-side hardware / device / auth | Give user exact commands, interpret their pasted output — don't probe locally |
 | Problem survived 2 failed attempts | Dispatch `auditor` to re-diagnose |

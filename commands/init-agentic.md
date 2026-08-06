@@ -23,6 +23,16 @@ Set up the Agentic Workflow Framework scaffolding in the CURRENT working directo
    - Check if `.gitignore` already excludes `.localdev/` or `.localdev`. If not, append `.localdev/` on its own line (it is NOT auto-ignored, unlike the old `.claude/` convention).
    - Confirm `docs/KNOWN_ISSUES.md` is NOT gitignored (it should be committed).
 
-4. **Report** — print a structured summary: created paths, skipped paths (already present), gitignore status.
+4. **Builder permissions (prevents silent background stalls)** — background subagents that hit an unapproved Edit/Write/Bash pause invisibly until the user focuses them in the UI; pre-approving builder tools per project is what makes background dispatch viable (see AGENTIC.md § Pre-granted permissions).
+   - Check `.claude/settings.local.json` in the project root. If it already sets `permissions.defaultMode`, leave it alone and report "already configured".
+   - Otherwise ASK the user: "Pre-approve builder edits in this project (`defaultMode: acceptEdits` in `.claude/settings.local.json`, auto-gitignored)? Without it, backgrounded builders stall silently on permission prompts."
+   - If yes: create or merge (preserve existing keys) `.claude/settings.local.json` with:
+     ```json
+     { "permissions": { "defaultMode": "acceptEdits", "allow": [] } }
+     ```
+     Then look at the project's test/build entry points (e.g. `package.json` scripts, `Makefile`) and offer matching `Bash(...)` allow entries — e.g. `Bash(npm test:*)`, `Bash(npm run build:*)`. Only add what the user confirms.
+   - If no: note in the report that builders in this project must be dispatched FOREGROUND (prompts must surface immediately).
+
+5. **Report** — print a structured summary: created paths, skipped paths (already present), gitignore status, permission setup outcome.
 
 Do NOT commit. Do NOT run any other setup commands.

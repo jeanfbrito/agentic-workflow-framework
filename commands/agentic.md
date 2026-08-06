@@ -1,9 +1,9 @@
 ---
-description: One-shot dispatch — reads project framework context, pre-warms the Planner, and runs the pipeline at the specified tier
+description: One-shot dispatch — reads project framework context and runs the pipeline at the specified tier (Planner joins only for ambiguous/architectural/risky-core work)
 argument-hint: [task description] [--tier=trivial|medium|full]
 ---
 
-Dispatch the `planner` subagent to handle `$ARGUMENTS`. This is the front door for any non-trivial task. The tier flag controls pipeline depth — and therefore cost.
+Run the pipeline for `$ARGUMENTS`. This is the explicit front door for one-shot dispatch. The tier flag controls pipeline depth — and therefore cost.
 
 # Steps
 
@@ -24,17 +24,16 @@ Dispatch the `planner` subagent to handle `$ARGUMENTS`. This is the front door f
 
    Assemble a compact summary: per file, a count + first relevant line. Do not paste full bodies.
 
-3. **Dispatch the `planner` subagent IN BACKGROUND** with:
-   - Task — the parsed task description.
-   - Tier — resolved tier.
-   - Context block — the pre-warmed summary.
+3. **Route the brief** — the Planner joins only when the task earns it:
+   - Task is genuinely ambiguous (2+ plausible interpretations), architectural, or risky-core (core physics/engine, schema/migration, security-adjacent), or `--tier=full` → **dispatch the `planner` subagent IN THE FOREGROUND** (`run_in_background: false`) with the task, tier, and context block. The Planner cannot dispatch other agents — it has no `Agent` tool. Its job is to produce the brief, a verifiable Definition of Done, and a per-tier dispatch plan, written to `.localdev/workflow/todo.md`. Foreground, never background: nothing can be dispatched until the brief exists, so backgrounding only adds stall risk for zero parallelism (AGENTIC.md § Execution).
+   - Well-scoped task (shape already clear) → **skip the Planner**: write the `todo.md` card yourself (status `[todo]`, Assignee, Attempts `0/2`, DoD, Deps) and proceed. A planner round costs ~8 blocking minutes and adds nothing here.
 
-   The Planner cannot dispatch other agents — it has no `Agent` tool. Its job is to produce the brief, a verifiable Definition of Done, and a per-tier dispatch plan, and write all of it to `.localdev/workflow/todo.md`. Running it in background keeps this chat free to answer blockers or steer mid-task while it works.
-
-4. **When the Planner returns, the main chat (orchestrator) executes the pipeline per tier**:
+4. **Execute the pipeline per tier** (main chat = orchestrator; builders prove their own DoD — run the checks, report numbers):
    - `trivial` → dispatch ONE `builder-trivial` (same edit across 5+ sites) or `builder-fast` (a single scoped edit). **Skip Finders, Researchers, Reviewer, Tester.**
-   - `medium` → dispatch Finders/Researchers (parallel), then Builders. **Skip Reviewer, Tester.**
-   - `full` → Full pipeline — dispatch Finders/Researchers → Builders → Reviewer → Tester, then re-invoke the Planner for final approval.
+   - `medium` → dispatch Finders/Researchers (parallel, if needed), then Builders. **Skip Reviewer, Tester.**
+   - `full` → Finders/Researchers → Builders → Reviewer diff-pass → Tester once at arc close → close on green DoD numbers. **No Planner re-approval round** — the Planner re-enters only via the auditor/2-strike path or when a builder's result contradicts the brief.
+
+   Dispatch foreground when a single agent carries the critical path; background only when 2+ agents genuinely run concurrently (then poll per AGENTIC.md rule 4c).
 
 # Rules
 
