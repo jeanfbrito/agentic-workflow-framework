@@ -1,6 +1,6 @@
 {
   "name": "agentic-workflow-framework",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Multi-agent orchestration conventions: orchestrator mode, 10 subagent roles, slash commands, hooks.",
   "author": { "name": "Jean Brito", "url": "https://github.com/jeanfbrito" },
   "hooks": {

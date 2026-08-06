@@ -4,9 +4,23 @@ Lightweight multi-agent orchestration conventions for Claude Code.
 
 ---
 
+## What's new (v3)
+
+`AGENTIC.md` gained a dedicated **§ Async dispatch** section covering five doctrines:
+
+- **Notification-driven completion** — background tasks deliver a completion notification; no polling cadence, `TaskOutput` is not used as a poll.
+- **SendMessage continuation on retry** — a failed builder's attempt 2 goes back to the SAME builder with the failure diagnosis, not a fresh dispatch.
+- **Worktree isolation** — builders with overlapping or unknown file footprints get `isolation: "worktree"` so they never collide on a shared tree.
+- **Orchestrator-held servers** — long-lived processes (servers, dev loops) stay on the orchestrator's own Bash `run_in_background` + `Monitor`; `watcher` is reserved for run-to-done jobs and logfile digests.
+- **Workflow lane** — 3+ same-stage agents or a multi-stage find→verify pipeline route through the `Workflow` tool (pipeline-by-default, schema-validated, zero polling) instead of hand-dispatched fan-out.
+
+`skills/agentic-workflow/SKILL.md` is now a thin pointer at `AGENTIC.md` (single source of truth) rather than a duplicate of the doctrine — see **Context cost** below.
+
+---
+
 ## What this installs
 
-- **1 spec document** (`~/.claude/AGENTIC.md`) -- the full framework spec imported into every session via `CLAUDE.md`
+- **1 spec document** (`~/.claude/AGENTIC.md`) -- the full framework spec imported into every session via `CLAUDE.md`. ~280 lines (~23KB), loaded once per session; `skills/agentic-workflow/SKILL.md` adds only ~1.8KB as a pointer at it instead of duplicating the doctrine.
 - **10 subagent definitions** in `~/.claude/agents/`: planner, auditor, reviewer, builder-smart, builder-fast, builder-trivial, finder, researcher, tester, watcher
 - **6 slash commands** in `~/.claude/commands/`: `/agentic`, `/init-agentic`, `/handoff`, `/blocker`, `/known-issue`, `/qq`
 - **1 reinforcement hook** (`~/.claude/hooks/orchestrator.sh`) -- fires on UserPromptSubmit to prevent Orchestrator drift

@@ -40,9 +40,9 @@ You do not dispatch subagents. After writing the brief, return a structured plan
 3. **Reviewer** (smart) — diff-pass on risky arcs only; patches small issues, never re-runs suites.
 4. **Tester** (fast) — once at arc close, runs the arc's combined DoD checks; builders prove their own DoD per card.
 
-Recommend **background** only for stages with genuine parallelism (multiple finders/researchers at once, non-overlapping builders). A stage with a SINGLE critical-path agent — one builder carrying the task — should run **foreground**: the orchestrator has nothing to parallelize with, and backgrounding a sole agent only exposes it to invisible permission-prompt stalls.
+Recommend **background** only for stages with genuine parallelism (multiple finders/researchers at once, non-overlapping builders). A stage with a SINGLE critical-path agent — one builder carrying the task — should run **foreground**: the orchestrator has nothing to parallelize with, and backgrounding a sole agent only exposes it to invisible permission-prompt stalls. Background completion is notification-driven — never recommend a polling cadence.
 
-Parallel rule of thumb: read-only agents parallelize freely; Builders serialize when touching the same file.
+Parallel rule of thumb: read-only agents parallelize freely; Builders serialize when touching the same file on a shared tree — or recommend `isolation: "worktree"` when builder footprints overlap or are unknown (each builder gets its own worktree; the orchestrator merges results). For 3+ same-stage agents or multi-stage find→verify fan-outs, recommend the **Workflow lane** (AGENTIC.md § Async dispatch): a deterministic script the orchestrator runs, reusing the role prompts as agent briefs. A failed builder attempt re-enters via `SendMessage` to the SAME builder (context intact) — recommend fresh dispatch only when the model tier must change.
 
 When invoked via `/agentic <task> --tier=...`, shape the plan to the tier:
 - `trivial` → skip Finders/Researchers/Reviewer/Tester; recommend one `builder-trivial` (same edit across 5+ sites) or `builder-fast` (a single scoped edit).

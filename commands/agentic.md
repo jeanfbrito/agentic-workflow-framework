@@ -33,7 +33,7 @@ Run the pipeline for `$ARGUMENTS`. This is the explicit front door for one-shot 
    - `medium` → dispatch Finders/Researchers (parallel, if needed), then Builders. **Skip Reviewer, Tester.**
    - `full` → Finders/Researchers → Builders → Reviewer diff-pass → Tester once at arc close → close on green DoD numbers. **No Planner re-approval round** — the Planner re-enters only via the auditor/2-strike path or when a builder's result contradicts the brief.
 
-   Dispatch foreground when a single agent carries the critical path; background only when 2+ agents genuinely run concurrently (then poll per AGENTIC.md rule 4c).
+   Dispatch foreground when a single agent carries the critical path; background only when 2+ agents genuinely run concurrently — completion is notification-driven, not polled (AGENTIC.md § Async dispatch).
 
 # Rules
 
@@ -41,3 +41,4 @@ Run the pipeline for `$ARGUMENTS`. This is the explicit front door for one-shot 
 - Ambiguous task (2+ plausible interpretations): dispatch the Planner at the inferred tier, but instruct it to ask a clarifying question before the orchestrator dispatches subordinates.
 - If the pre-warmed context surfaces an open handoff matching this task, fold it into the Planner's brief.
 - If `.localdev/workflow/` does not exist in the current project, run `/init-agentic` first, then retry.
+- At any tier, when a stage fans out to 3+ same-stage agents or the pipeline needs a multi-stage find→verify sweep, route it through the Workflow lane per AGENTIC.md § Async dispatch instead of hand-dispatching each one.
