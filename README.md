@@ -35,10 +35,10 @@ Lightweight multi-agent orchestration conventions for Claude Code.
 
 This framework treats three external tools as first-class infrastructure:
 
-- **GitNexus** — mandatory first stop for structural code questions (call chains, impact, architecture) when the repo is indexed. Query before grepping.
-- **context-mode** — mandatory sandbox for large outputs (file reads, logs, test runs) so raw data never enters the context window.
-- **context7** — mandatory verification of library/API/CLI behavior before asserting it; never from training memory.
-- **RTK** — token-filtered shell command proxy for routine ops.
+- **[GitNexus](https://github.com/abhigyanpatwari/GitNexus)** — mandatory first stop for structural code questions (call chains, impact, architecture) when the repo is indexed. Query before grepping.
+- **[context-mode](https://github.com/mksglu/context-mode)** — mandatory sandbox for large outputs (file reads, logs, test runs) so raw data never enters the context window.
+- **[context7](https://github.com/upstash/context7)** — mandatory verification of library/API/CLI behavior before asserting it; never from training memory.
+- **[RTK](https://github.com/rtk-ai/rtk)** — token-filtered shell command proxy for routine ops.
 
 These are not bundled. Install separately. **Fail-loud rule**: when one of their MCP calls errors, the orchestrator and every subagent report the exact tool + verbatim error to the user instead of silently degrading to raw grep / web / training-data recall — silent fallback is how hallucinations ship.
 
