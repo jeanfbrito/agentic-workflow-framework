@@ -73,6 +73,10 @@ for cmd_src in "$SCRIPT_DIR"/commands/*.md; do
   remove_file ~/.claude/commands/"$(basename "$cmd_src")"
 done
 remove_file ~/.claude/hooks/orchestrator.sh
+remove_file ~/.claude/hooks/session-scan.sh
+remove_file ~/.claude/hooks/pre-compact.sh
+remove_file ~/.claude/hooks/stop-ledger-audit.sh
+remove_file ~/.claude/hooks/ledger-append.sh
 
 # ---------------------------------------------------------------------------
 # 2b. Remove framework skill dirs
@@ -183,11 +187,30 @@ changed = False
 if "SessionStart" in hooks:
     before = len(hooks["SessionStart"])
     hooks["SessionStart"] = strip_entries(hooks["SessionStart"], "agentic: armed")
+    hooks["SessionStart"] = strip_entries(hooks["SessionStart"], "session-scan.sh")
     if len(hooks["SessionStart"]) != before:
         changed = True
         print("REMOVED_SS")
     else:
         print("SS_NOT_FOUND")
+
+if "PreCompact" in hooks:
+    before = len(hooks["PreCompact"])
+    hooks["PreCompact"] = strip_entries(hooks["PreCompact"], "pre-compact.sh")
+    if len(hooks["PreCompact"]) != before:
+        changed = True
+        print("REMOVED_PC")
+    else:
+        print("PC_NOT_FOUND")
+
+if "Stop" in hooks:
+    before = len(hooks["Stop"])
+    hooks["Stop"] = strip_entries(hooks["Stop"], "stop-ledger-audit.sh")
+    if len(hooks["Stop"]) != before:
+        changed = True
+        print("REMOVED_STOP")
+    else:
+        print("STOP_NOT_FOUND")
 
 if "UserPromptSubmit" in hooks:
     before = len(hooks["UserPromptSubmit"])

@@ -15,9 +15,33 @@
           },
           {
             "type": "command",
-            "command": "if [ -d .localdev/workflow ]; then found=0; if grep -qE '^## [0-9]{4}-' .localdev/workflow/blockers.md 2>/dev/null; then echo 'Active blockers: .localdev/workflow/blockers.md'; found=1; fi; for f in .localdev/workflow/handoffs/*.md; do [ -e \"$f\" ] && { mtime=$(stat -f %m \"$f\" 2>/dev/null || stat -c %Y \"$f\" 2>/dev/null); mtime=${mtime:-$(date +%s)}; age=$(( ( $(date +%s) - mtime ) / 86400 )); if [ \"$age\" -gt 7 ]; then echo \"Open handoff: $f (age: ${age}d) — stale, resume or absorb into done.md\"; else echo \"Open handoff: $f (age: ${age}d)\"; fi; found=1; }; done; if grep -qE '^## \\[(doing|blocked)\\]' .localdev/workflow/todo.md 2>/dev/null; then echo 'Open tasks: .localdev/workflow/todo.md'; found=1; fi; if [ \"$found\" -eq 0 ]; then echo 'agentic: armed'; fi; fi",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/session-scan.sh\"",
             "timeout": 5,
             "statusMessage": "Checking agentic session state..."
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-compact.sh\"",
+            "timeout": 5,
+            "statusMessage": "Snapshotting in-flight cards before compaction..."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/stop-ledger-audit.sh\"",
+            "timeout": 5,
+            "statusMessage": "Ledger hygiene check..."
           }
         ]
       }

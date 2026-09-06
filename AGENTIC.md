@@ -49,10 +49,13 @@ In the main chat, act as the **Orchestrator** by default, regardless of the mode
 **Stalls.** If a background agent is silent well past its expected runtime (~5 min beyond), diagnose in order:
 1. **Pending permission prompt — the dominant cause** (confirmed root cause of past 20-minute "stalls"). A background subagent that hits an unapproved Edit/Write/Bash pauses invisibly; no poll or ping can answer the prompt. Tell the user immediately to focus the task and approve, then fix the project allowlist (§ Pre-granted permissions) so it never recurs. Prevention beats detection: don't background builders in a project that hasn't pre-approved their edit paths and commands.
 2. Only after permissions are ruled out: probe ONCE — `SendMessage` ping to the agent by name, or a single blocking `TaskOutput(block=true)`. A probe, not a cadence.
+3. **Scouts (`finder`/`researcher`/`tester`) get 5 minutes, not 30.** A haiku scout silent past ~5 min with no permission prompt is looping, not thinking — `TaskStop` it and redispatch a NARROWER brief: numbered steps, the exact files to open, a tool-call cap (≤12), and "reply PARTIAL when the cap hits". Never let a scout eat the MCP idle timeout (30 min); the same question re-asked tightly has returned in 1–3 min every time.
+
+**Scout briefs are recipes, not questions.** Every `finder` brief names the files (or the GitNexus query) to read, numbers the steps, and states the output shape (table rows, `path:line`). Never send a scout an open-ended "compare X with Y" over a large tree (decompiled sources, vendored deps, generated code) — it will try to script the comparison and hang. If the answer genuinely needs aggregation across hundreds of files, that is orchestrator work via GitNexus/context-mode, not a haiku job.
 
 **Continuation over redispatch.** `SendMessage` resumes a previously spawned agent with its context intact — even after it completed. A failed builder's attempt 2 goes to the SAME builder carrying the failure diagnosis; a follow-up question goes to the agent that already has the files loaded. Dispatch fresh only when the accumulated context is the problem or the model tier must change.
 
-**Worktree isolation.** Builders whose file footprints overlap or are unknown → dispatch with `isolation: "worktree"`: each gets its own git worktree (auto-removed if unchanged); merging results back is the orchestrator's job. On a SHARED tree, NOBODY mutates git state — no `git stash`/`pop`, `checkout`, `reset`, nothing that reverts files: it silently destroys teammates' uncommitted work while their probes run. Every shared-tree builder brief carries this ban; inside an isolated worktree it doesn't apply.
+**Worktree isolation.** Builders whose file footprints overlap or are unknown → dispatch with `isolation: "worktree"`: each gets its own git worktree (auto-removed if unchanged); merging results back is the orchestrator's job. On a SHARED tree, NOBODY mutates git state — no `git stash`/`pop`, `checkout`, `reset`, nothing that reverts files: it silently destroys teammates' uncommitted work while their probes run. Every shared-tree builder brief carries this ban; inside an isolated worktree it doesn't apply. Same shared-tree hazard applies to `done.md`/`findings.md`: whenever 2+ agents may write, append via `bash ~/.claude/hooks/ledger-append.sh <done|findings>` (entry text on stdin) instead of Edit — it's lock-guarded against concurrent appends.
 
 **Servers & long processes.** To hold a server alive across turns: your own Bash `run_in_background` — output goes to a file (not your context) and you're notified on exit. Readiness/error events → `Monitor` with a filtered stream (an `until`-loop for one-shot readiness). Digesting an existing logfile or any run-to-done job → `watcher`. A watcher cannot hold a process alive after it returns and cannot poll tasks it didn't dispatch (`TaskOutput` is scoped to the dispatcher).
 
@@ -122,7 +125,7 @@ Roles (installed as subagents in `~/.claude/agents/`):
 - **builder-fast** [sonnet]: default implementation tier — scoped features, bug fixes, small multi-file changes.
 - **builder-smart** [opus]: the exception — failed sonnet attempt, or strategy-grade implementation (novel algorithms, subtle concurrency). Serialized by file on a shared tree.
 - **builder-trivial** [haiku]: bulk mechanical work across 5+ sites; light per-site judgment OK; run many in parallel.
-- **finder** [haiku]: codebase search — files, call chains, patterns. Read-only, parallel-safe.
+- **finder** [haiku]: codebase search — files, call chains, patterns. Read-only, parallel-safe. Hard budget 12 calls / 10 min, replies `PARTIAL` past it; never writes scripts; brief must name files and number steps (§ Async dispatch — Stalls).
 - **researcher** [haiku]: external docs, API references, library behavior. Read-only, parallel-safe.
 - **tester** [haiku]: independent validation at arc close only (or when a builder couldn't run its proof). Read-only, parallel-safe.
 - **watcher** [haiku]: runs run-to-done noisy jobs and samples logfiles, returns a one-line verdict + verbatim errors. Cannot hold processes alive or poll other agents' tasks (§ Async dispatch).
@@ -222,7 +225,7 @@ Flat append log, no structure required. Ephemeral — delete on session close.
 - Attempts: 1
 ```
 
-Header deliberately matches blockers.md's parseable `^## [0-9]{4}-` convention. Append-only, chronological, never loaded wholesale (grows unbounded by design); indexable via context-mode FTS for historical search.
+Header deliberately matches blockers.md's parseable `^## [0-9]{4}-` convention. Append-only, chronological, never loaded wholesale (grows unbounded by design); indexable via context-mode FTS for historical search. Same for `findings.md`: when 2+ agents may be appending, use `ledger-append.sh` (§ Async dispatch), not a bare Edit.
 
 ## Pre-granted permissions
 
@@ -234,16 +237,18 @@ Global (`~/.claude/settings.json`, one-time via installer): `Write`/`Edit` on `.
 {
   "permissions": {
     "defaultMode": "acceptEdits",
-    "allow": ["Bash(npm test:*)", "Bash(npm run build:*)"]
+    "allow": ["Bash(npm test:*)", "Bash(npm run build:*)", "Bash(bash ~/.claude/hooks/ledger-append.sh:*)"]
   }
 }
 ```
 
 `defaultMode: acceptEdits` stops Edit/Write prompts in the project tree (subagents included); grow `allow` from real usage — `/fewer-permission-prompts` can generate it from transcripts. `/init-agentic` offers to scaffold this. If a project deliberately opts out, do NOT background builders there — run them foreground so prompts surface immediately.
 
-## SessionStart hook
+## Hook suite (SessionStart / PreCompact / Stop)
 
-On every session start (installed in `~/.claude/settings.json`): scans CWD for `.localdev/workflow/` and prints handoffs (resume context), a warning if `blockers.md` has unresolved entries, and open `[doing]`/`[blocked]` cards. Silent no-op if the directory doesn't exist.
+- **SessionStart** — `hooks/session-scan.sh` builds a budgeted, value-ordered digest instead of the old bare file-pointer print. Silent no-op if `.localdev/workflow/` doesn't exist. Order (greedy-packed under a ~4000-char budget, small items after a dropped oversized one still get a chance): PreCompact recovery warning (see below) → pending `_audit-pending.md` verbatim (then deleted) → active blocker H2 titles → open `[todo]`/`[doing]`/`[blocked]` card titles + Attempts → handoff filenames + age (stale >7d warned) → `✓ agentic: armed` only if nothing else printed. Titles clipped to 140 chars; the audit file and the PreCompact warning sentence are the exceptions inlined verbatim.
+- **PreCompact** — `hooks/pre-compact.sh` snapshots open `[doing]`/`[blocked]` cards before compaction. On the next `compact`/`resume` source with a snapshot <24h old, session-scan.sh injects a "do NOT re-dispatch — check TaskList/ListAgents first" warning + those card titles at the top, then deletes the snapshot (`startup`/`clear` delete a stale one silently).
+- **Stop** — `hooks/stop-ledger-audit.sh` diffs the session's transcript (Write/Edit tool calls) against ledger state: ≥3 non-ledger files written with a stale/absent `done.md`; a `[doing]` card never touched via todo.md this session; `blockers.md`/`[blocked]`-card inconsistency. Findings overwrite `_audit-pending.md` (picked up by the next SessionStart digest) and are also surfaced same-turn via Stop's `additionalContext`. Skips entirely when `stop_hook_active` is true, the transcript is missing/unreadable, or there's nothing to report — never blocks the stop, never uses `decision:"block"`.
 
 ## File Layout
 

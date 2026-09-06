@@ -89,6 +89,10 @@ for cmd_src in "$SCRIPT_DIR/commands"/*.md; do
 done
 
 install_file "$SCRIPT_DIR/hooks/orchestrator.sh"         ~/.claude/hooks/orchestrator.sh
+install_file "$SCRIPT_DIR/hooks/session-scan.sh"         ~/.claude/hooks/session-scan.sh
+install_file "$SCRIPT_DIR/hooks/pre-compact.sh"          ~/.claude/hooks/pre-compact.sh
+install_file "$SCRIPT_DIR/hooks/stop-ledger-audit.sh"    ~/.claude/hooks/stop-ledger-audit.sh
+install_file "$SCRIPT_DIR/scripts/ledger-append.sh"      ~/.claude/hooks/ledger-append.sh
 
 # ---------------------------------------------------------------------------
 # 3b. Skills -- dynamic install (loop over skills/*/)
@@ -115,6 +119,10 @@ done
 # ---------------------------------------------------------------------------
 
 chmod +x ~/.claude/hooks/orchestrator.sh
+chmod +x ~/.claude/hooks/session-scan.sh
+chmod +x ~/.claude/hooks/pre-compact.sh
+chmod +x ~/.claude/hooks/stop-ledger-audit.sh
+chmod +x ~/.claude/hooks/ledger-append.sh
 
 # ---------------------------------------------------------------------------
 # 5. CLAUDE.md -- backup + ensure @AGENTIC.md import line
@@ -174,28 +182,47 @@ def strip_framework(arr, marker):
 
 # --- SessionStart ---
 session_start = hooks.setdefault("SessionStart", [])
-ss_command = (
-    'if [ -d .localdev/workflow ]; then found=0; '
-    'if grep -qE \'^## [0-9]{4}-\' .localdev/workflow/blockers.md 2>/dev/null; '
-    'then echo \'⚠️  Active blockers: .localdev/workflow/blockers.md\'; found=1; fi; '
-    'for f in .localdev/workflow/handoffs/*.md; do '
-    '[ -e "$f" ] && { mtime=$(stat -f %m "$f" 2>/dev/null || stat -c %Y "$f" 2>/dev/null); '
-    'mtime=${mtime:-$(date +%s)}; age=$(( ( $(date +%s) - mtime ) / 86400 )); '
-    'if [ "$age" -gt 7 ]; then echo "📋 Open handoff: $f (age: ${age}d) — stale, resume or absorb into done.md"; '
-    'else echo "📋 Open handoff: $f (age: ${age}d)"; fi; found=1; }; done; '
-    'if grep -qE \'^## \\[(doing|blocked)\\]\' .localdev/workflow/todo.md 2>/dev/null; '
-    'then echo \'📋 Open tasks: .localdev/workflow/todo.md\'; found=1; fi; '
-    'if [ "$found" -eq 0 ]; then echo \'✓ agentic: armed\'; fi; fi'
-)
-# Marker 'agentic: armed' is unique to this framework's SessionStart command.
+ss_command = "bash ~/.claude/hooks/session-scan.sh"
+# Two markers: 'agentic: armed' catches the OLD pre-script inline blob (the
+# digest text used to be embedded directly in this command string) so an
+# upgrade replaces it instead of leaving a stale duplicate; 'session-scan.sh'
+# catches this entry itself so repeat installs stay idempotent.
 before_ss = len(session_start)
 session_start = strip_framework(session_start, 'agentic: armed')
+session_start = strip_framework(session_start, 'session-scan.sh')
 session_start.append({
     "matcher": "",
     "hooks": [{"type": "command", "command": ss_command}]
 })
 hooks["SessionStart"] = session_start
 print("SS_REPLACED" if before_ss > len(session_start) - 1 else "SS_ADDED")
+
+# --- PreCompact ---
+pre_compact = hooks.setdefault("PreCompact", [])
+pc_command = "bash ~/.claude/hooks/pre-compact.sh"
+# Marker 'pre-compact.sh' identifies this framework's entry -- filter then
+# append keeps repeat installs idempotent.
+before_pc = len(pre_compact)
+pre_compact = strip_framework(pre_compact, 'pre-compact.sh')
+pre_compact.append({
+    "matcher": "",
+    "hooks": [{"type": "command", "command": pc_command}]
+})
+hooks["PreCompact"] = pre_compact
+print("PC_REPLACED" if before_pc > len(pre_compact) - 1 else "PC_ADDED")
+
+# --- Stop ---
+stop_hooks = hooks.setdefault("Stop", [])
+stop_command = "bash ~/.claude/hooks/stop-ledger-audit.sh"
+# Marker 'stop-ledger-audit.sh' identifies this framework's entry.
+before_stop = len(stop_hooks)
+stop_hooks = strip_framework(stop_hooks, 'stop-ledger-audit.sh')
+stop_hooks.append({
+    "matcher": "",
+    "hooks": [{"type": "command", "command": stop_command}]
+})
+hooks["Stop"] = stop_hooks
+print("STOP_REPLACED" if before_stop > len(stop_hooks) - 1 else "STOP_ADDED")
 
 # --- UserPromptSubmit ---
 user_prompt = hooks.setdefault("UserPromptSubmit", [])
@@ -269,7 +296,7 @@ echo "--- Summary ---"
 echo ""
 
 SKILL_COUNT="${#INSTALLED_SKILLS[@]}"
-CORE_COUNT=$((2 + AGENT_COUNT + COMMAND_COUNT))  # AGENTIC.md + hook + agents + commands
+CORE_COUNT=$((6 + AGENT_COUNT + COMMAND_COUNT))  # AGENTIC.md + 4 hooks + ledger-append.sh + agents + commands
 if [ "$LINK" -eq 1 ]; then
   echo "Framework files: linked (dev mode) -- $CORE_COUNT core symlinks + $SKILL_COUNT skill(s) to $SCRIPT_DIR"
 else
@@ -292,8 +319,14 @@ fi
 
 echo ""
 echo "settings.json hook entries:"
-if grep -q 'agentic: armed' "$SETTINGS_JSON" 2>/dev/null; then
-  echo "  hooks.SessionStart        -- blocker/handoff scanner (present)"
+if grep -q 'session-scan.sh' "$SETTINGS_JSON" 2>/dev/null; then
+  echo "  hooks.SessionStart        -- budgeted ledger digest (present)"
+fi
+if grep -q 'pre-compact.sh' "$SETTINGS_JSON" 2>/dev/null; then
+  echo "  hooks.PreCompact          -- in-flight card snapshot (present)"
+fi
+if grep -q 'stop-ledger-audit.sh' "$SETTINGS_JSON" 2>/dev/null; then
+  echo "  hooks.Stop                -- ledger hygiene audit (present)"
 fi
 if grep -q 'orchestrator.sh' "$SETTINGS_JSON" 2>/dev/null; then
   echo "  hooks.UserPromptSubmit    -- orchestrator reinforcement (present)"

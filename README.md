@@ -23,8 +23,9 @@ Lightweight multi-agent orchestration conventions for Claude Code.
 - **1 spec document** (`~/.claude/AGENTIC.md`) -- the full framework spec imported into every session via `CLAUDE.md`. ~280 lines (~23KB), loaded once per session; `skills/agentic-workflow/SKILL.md` adds only ~1.8KB as a pointer at it instead of duplicating the doctrine.
 - **10 subagent definitions** in `~/.claude/agents/`: planner, auditor, reviewer, builder-smart, builder-fast, builder-trivial, finder, researcher, tester, watcher
 - **6 slash commands** in `~/.claude/commands/`: `/agentic`, `/init-agentic`, `/handoff`, `/blocker`, `/known-issue`, `/qq`
-- **1 reinforcement hook** (`~/.claude/hooks/orchestrator.sh`) -- fires on UserPromptSubmit to prevent Orchestrator drift
-- **2 `settings.json` hook entries** -- SessionStart (blocker/handoff scanner) + UserPromptSubmit (orchestrator reinforcement)
+- **4 hook scripts** in `~/.claude/hooks/`: `orchestrator.sh` (UserPromptSubmit reinforcement), `session-scan.sh` (SessionStart budgeted ledger digest), `pre-compact.sh` (PreCompact in-flight card snapshot), `stop-ledger-audit.sh` (Stop ledger hygiene audit)
+- **1 utility script** (`~/.claude/hooks/ledger-append.sh`) -- lock-guarded `done.md`/`findings.md` appends; installed alongside the hooks but not wired to a hook event itself
+- **4 `settings.json` hook entries** -- SessionStart (budgeted ledger digest) + PreCompact (in-flight card snapshot) + Stop (ledger hygiene audit) + UserPromptSubmit (orchestrator reinforcement)
 - **1 `CLAUDE.md` import line** -- `@AGENTIC.md` so the spec loads globally in every Claude Code session
 - **2 skills** in `~/.claude/skills/`: agentic-workflow and personal-engineering-rules
 - **6 permission globs** in `~/.claude/settings.json`: Write/Edit for `.localdev/workflow/**`, `.localdev/workflow/handoffs/**`, and `docs/KNOWN_ISSUES.md`
@@ -128,7 +129,7 @@ project-root/
 
 ## Customizing
 
-Edit `AGENTIC.md` or any agent/command file in this repo, then re-run `install.sh`. It is idempotent: framework files are overwritten, but `CLAUDE.md` content and existing `settings.json` hook entries beyond the two added by this installer are left intact.
+Edit `AGENTIC.md` or any agent/command file in this repo, then re-run `install.sh`. It is idempotent: framework files are overwritten, but `CLAUDE.md` content and existing `settings.json` hook entries beyond the four added by this installer are left intact.
 
 ---
 
