@@ -465,6 +465,19 @@ for skill_dir in "$SCRIPT_DIR/skills"/*/; do
   fi
 done
 
+# 7d-guard -- a vacuous loop must not read as success. If skills/*/ matched
+#             nothing, the loop above emitted zero checks and the suite would
+#             pass having verified nothing.
+SKILL_N=0
+for skill_dir in "$SCRIPT_DIR/skills"/*/; do
+  [ -d "$skill_dir" ] && SKILL_N=$((SKILL_N + 1))
+done
+if [ "$SKILL_N" -gt 0 ]; then
+  check "repo contains at least one skill ($SKILL_N found)" "$PASS"
+else
+  check "repo contains at least one skill" "$FAIL"
+fi
+
 # 7e -- repo hook scripts exist and pass bash syntax check
 for h in orchestrator.sh inject-agentic-context.sh allow-workflow-paths.sh session-scan.sh pre-compact.sh stop-ledger-audit.sh; do
   if [ -f "$SCRIPT_DIR/hooks/$h" ] && bash -n "$SCRIPT_DIR/hooks/$h" 2>/dev/null; then
@@ -494,6 +507,34 @@ for skill_dir in "$SCRIPT_DIR/skills"/*/; do
     check "~/.claude/skills/$s/SKILL.md exists" "$FAIL"
   fi
 done
+
+# ---------------------------------------------------------------------------
+# Check 8b -- every relative doc link in the INSTALLED AGENTIC.md resolves to a
+#             real file under ~/.claude/. The doctrine loads its detail on
+#             demand, so a link that dangles at runtime silently removes that
+#             guidance with nothing else catching it. Parsed from the file, so
+#             it tracks whatever the doctrine currently links to. Zero links is
+#             a failure, not a pass -- that is the vacuous case.
+# ---------------------------------------------------------------------------
+
+if python3 - ~/.claude/AGENTIC.md <<'PYEOF'
+import os, re, sys
+path = os.path.expanduser(sys.argv[1])
+if not os.path.isfile(path):
+    sys.exit(1)
+base = os.path.dirname(path)
+links = re.findall(r"\]\(([^)]+\.md)\)", open(path).read())
+rel = [l for l in links if not l.startswith(("http://", "https://"))]
+missing = [l for l in rel if not os.path.isfile(os.path.join(base, l))]
+if missing:
+    print("dangling: " + ", ".join(missing), file=sys.stderr)
+sys.exit(1 if (missing or not rel) else 0)
+PYEOF
+then
+  check "installed AGENTIC.md: every relative doc link resolves under ~/.claude/" "$PASS"
+else
+  check "installed AGENTIC.md: every relative doc link resolves under ~/.claude/" "$FAIL"
+fi
 
 # ---------------------------------------------------------------------------
 # Check 9 -- settings.json permissions.allow contains framework globs and
@@ -552,7 +593,9 @@ ROLE_REF="$SCRIPT_DIR/skills/agentic-workflow/references/delegation.md"
 if [ ! -f "$ROLE_REF" ]; then
   check "delegation reference present (role table source)" "$FAIL"
 else
+  AGENT_N=0
   for agent_src in "$SCRIPT_DIR"/agents/*.md; do
+    AGENT_N=$((AGENT_N + 1))
     agent_name="$(basename "$agent_src" .md)"
     if grep -qE "^\| *${agent_name} *\|" "$ROLE_REF"; then
       check "role documented in delegation reference: $agent_name" "$PASS"
@@ -560,6 +603,12 @@ else
       check "role documented in delegation reference: $agent_name" "$FAIL"
     fi
   done
+
+  if [ "$AGENT_N" -gt 0 ]; then
+    check "repo contains at least one agent definition ($AGENT_N found)" "$PASS"
+  else
+    check "repo contains at least one agent definition" "$FAIL"
+  fi
 
   ROLE_ROWS="$(mktemp)"
   grep -oE '^\| *[a-z][a-z-]* *\|' "$ROLE_REF" | tr -d '| ' > "$ROLE_ROWS"
