@@ -7,7 +7,7 @@ Append a new decision blocker to `.localdev/workflow/blockers.md`, then STOP and
 
 # Canonical entry format
 
-Every blocker entry starts with an H2 date-stamp header. The SessionStart hook matches `^## [0-9]{4}-`, so this exact shape MUST be used (see `AGENTIC.md § Canonical entry formats`):
+Every blocker entry starts with an H2 date-stamp header. The SessionStart hook matches `^## [0-9]{4}-`, so this exact shape MUST be used (see `skills/agentic-workflow/references/ledgers.md § Blockers`):
 
 ```
 ## YYYY-MM-DD HH:MM — <summary>

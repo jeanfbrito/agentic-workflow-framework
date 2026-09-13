@@ -539,37 +539,40 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Check 10 -- agent model bindings are consistent with AGENTIC.md's
-#             Agent Roles bullets. Both sides are parsed fresh at runtime
-#             (no hardcoded bindings) so this doesn't go stale as tiers
-#             shift. Tolerant: only fails when AGENTIC.md's role bullet
-#             names a model alias (opus/sonnet/haiku/inherit) that conflicts
-#             with the agent's frontmatter `model:` value; a bullet with no
-#             explicit alias (just a tier word like "reasoning"/"smart"/
-#             "fast") is not compared.
+# Check 10 -- role/agent parity between agents/*.md and the delegation
+#             reference's role table, in both directions. The doctrine no
+#             longer pins model aliases (each role carries its own frontmatter
+#             `model:`), so there is nothing to cross-check there; what can
+#             still drift is a role documented with no definition, or a
+#             definition absent from the table. Parsed fresh at runtime.
 # ---------------------------------------------------------------------------
 
-for agent_src in "$SCRIPT_DIR"/agents/*.md; do
-  agent_name="$(basename "$agent_src" .md)"
-  fm_model="$(grep -m1 '^model:' "$agent_src" | sed 's/^model:[[:space:]]*//')"
-  role_line="$(grep -E "^- \*\*${agent_name}\*\*" "$SCRIPT_DIR/AGENTIC.md" | head -n1)"
-  if [ -z "$role_line" ] || [ -z "$fm_model" ]; then
-    check "model binding consistent: $agent_name" "$PASS"
-    continue
-  fi
-  bracket="$(echo "$role_line" | grep -oE '\[[^]]*\]' | head -n1)"
-  conflict=0
-  for alias in opus sonnet haiku inherit; do
-    if echo "$bracket" | grep -qw "$alias" && [ "$alias" != "$fm_model" ]; then
-      conflict=1
+ROLE_REF="$SCRIPT_DIR/skills/agentic-workflow/references/delegation.md"
+
+if [ ! -f "$ROLE_REF" ]; then
+  check "delegation reference present (role table source)" "$FAIL"
+else
+  for agent_src in "$SCRIPT_DIR"/agents/*.md; do
+    agent_name="$(basename "$agent_src" .md)"
+    if grep -qE "^\| *${agent_name} *\|" "$ROLE_REF"; then
+      check "role documented in delegation reference: $agent_name" "$PASS"
+    else
+      check "role documented in delegation reference: $agent_name" "$FAIL"
     fi
   done
-  if [ "$conflict" -eq 0 ]; then
-    check "model binding consistent: $agent_name (frontmatter=$fm_model, AGENTIC.md=$bracket)" "$PASS"
-  else
-    check "model binding consistent: $agent_name (frontmatter=$fm_model, AGENTIC.md=$bracket)" "$FAIL"
-  fi
-done
+
+  ROLE_ROWS="$(mktemp)"
+  grep -oE '^\| *[a-z][a-z-]* *\|' "$ROLE_REF" | tr -d '| ' > "$ROLE_ROWS"
+  while IFS= read -r role; do
+    [ -n "$role" ] || continue
+    if [ -f "$SCRIPT_DIR/agents/$role.md" ]; then
+      check "role table row has an agent definition: $role" "$PASS"
+    else
+      check "role table row has an agent definition: $role" "$FAIL"
+    fi
+  done < "$ROLE_ROWS"
+  rm -f "$ROLE_ROWS"
+fi
 
 # ---------------------------------------------------------------------------
 # Result
