@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: Quality gate after Builders on risky arcs — reads the DIFF, checks logic/rules/conventions, patches small problems directly, spot-checks at most one targeted test file. NEVER re-runs full test suites (the builder's DoD numbers already cover that). Reports to the orchestrator.
+description: Review a risky diff for concrete regressions and scope issues, using existing verification evidence.
 model: sonnet
 effort: medium
 tools: Read, Edit, Grep, Glob, Bash

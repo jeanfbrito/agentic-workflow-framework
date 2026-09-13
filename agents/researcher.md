@@ -1,6 +1,6 @@
 ---
 name: researcher
-description: External knowledge gathering — library docs, API references, version-specific behavior, CLI tool usage. Read-only and parallel-safe. Use for "how does library Y work?", "what's the current syntax for X?", "what does this API return?"
+description: Find primary-source evidence for a specified API, library, CLI, or platform question.
 model: haiku
 effort: high
 tools: Read, WebFetch, WebSearch, mcp__plugin_context7_context7__resolve-library-id, mcp__plugin_context7_context7__query-docs, mcp__plugin_context-mode_context-mode__ctx_fetch_and_index, mcp__plugin_context-mode_context-mode__ctx_search

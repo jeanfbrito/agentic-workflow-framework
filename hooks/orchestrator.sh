@@ -5,7 +5,7 @@
 #       does NOT contain an opt-out phrase or framework slash command.
 #
 # The directive itself lives in ~/.claude/AGENTIC.md § Operating Mode. This
-# hook is pure reinforcement against mid-session model drift.
+# hook points back to the workflow without prescribing a delegation pipeline.
 
 set -u
 
@@ -47,5 +47,5 @@ done
 # literals instead of bare roots to avoid false positives (e.g. "muddle",
 # "criteria", "alternative"). Single fork.
 if printf '%s' "$prompt" | grep -Eiq '(^|[^a-zA-Z])(fix|implement|refactor|create|update|rename|migrate|build|patch|port|deploy|install|generate|rework|wire|scaffold|bootstrap|integrate|modify|rewrite|extend|add|remov|delete|change|write|convert|corrig|consert|arrum|ajust|cria|crie|criar|adicion|muda|mude|altera|altere|refator|escrev|atualiz|instal|constr(o|u)i|construa)[a-zA-Z]*([^a-zA-Z]|$)'; then
-  echo "orchestrator: delegate implementation to subagents (builder-trivial/builder-fast/builder-smart, finder, researcher, tester, watcher); edit files yourself only for trivial one-liners or files already in context. See AGENTIC.md § Operating Mode."
+  echo "orchestrator: complete the requested outcome and focused checks within existing authorization. Use only the planning, context, and delegation the task needs. See AGENTIC.md § Operating Mode."
 fi

@@ -359,9 +359,9 @@ echo "  /handoff <name>         Write a cross-session handoff from current conte
 echo "  /blocker <summary>      Log an unresolved blocker and halt."
 echo "  /known-issue <summary>  Append a platform constraint to docs/KNOWN_ISSUES.md."
 echo ""
-echo "  Orchestrator mode is active by default. Claude delegates implementation"
-echo "  to subagents (builder-fast, builder-smart, finder, researcher, tester)."
-echo "  'do it yourself' overrides for one turn. 'off orchestrator' disables for the session."
+echo "  Handle scoped work directly; use planning and authorized delegation when useful."
+echo "  Continue through the requested outcome and focused verification."
+echo "  'do it yourself' and 'off orchestrator' disable delegation."
 echo ""
 
 if [ "$ALL_PASS" -eq 0 ]; then

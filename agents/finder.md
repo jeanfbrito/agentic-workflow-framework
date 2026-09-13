@@ -1,6 +1,6 @@
 ---
 name: finder
-description: Fast codebase search specialist. Finds files by pattern, traces call chains, maps patterns across the tree. Read-only and parallel-safe. Use for "where is X?", "what calls Y?", "which files match Z?"
+description: Locate code and trace call chains for a bounded, read-only question.
 model: haiku
 effort: high
 tools: Read, Grep, Glob, Bash, mcp__gitnexus__query, mcp__gitnexus__context, mcp__gitnexus__impact, mcp__gitnexus__cypher, mcp__gitnexus__route_map, mcp__gitnexus__tool_map, mcp__gitnexus__list_repos, mcp__plugin_context-mode_context-mode__ctx_search

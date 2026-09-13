@@ -1,26 +1,26 @@
 # Agentic Workflow Framework
 
-Lightweight multi-agent orchestration conventions for Claude Code.
+Lightweight task continuity and optional agent coordination for Claude Code.
 
 ---
 
-## What's new (v3)
+## Working conventions
 
-`AGENTIC.md` gained a dedicated **§ Async dispatch** section covering five doctrines:
+Handle clear, bounded work directly. Add planning, continuity, and authorized
+delegation when they help the task. Continue through the requested outcome and
+focused checks without a routine planning approval or repeated test round.
 
-- **Notification-driven completion** — background tasks deliver a completion notification; no polling cadence, `TaskOutput` is not used as a poll.
-- **SendMessage continuation on retry** — a failed builder's attempt 2 goes back to the SAME builder with the failure diagnosis, not a fresh dispatch.
-- **Worktree isolation** — builders with overlapping or unknown file footprints get `isolation: "worktree"` so they never collide on a shared tree.
-- **Orchestrator-held servers** — long-lived processes (servers, dev loops) stay on the orchestrator's own Bash `run_in_background` + `Monitor`; `watcher` is reserved for run-to-done jobs and logfile digests.
-- **Workflow lane** — 3+ same-stage agents or a multi-stage find→verify pipeline route through the `Workflow` tool (pipeline-by-default, schema-validated, zero polling) instead of hand-dispatched fan-out.
-
-`skills/agentic-workflow/SKILL.md` is now a thin pointer at `AGENTIC.md` (single source of truth) rather than a duplicate of the doctrine — see **Context cost** below.
+`AGENTIC.md` contains the shared guidance. Detailed
+[ledger formats](skills/agentic-workflow/references/ledgers.md) and
+[delegation mechanics](skills/agentic-workflow/references/delegation.md) are
+loaded only when needed. Skills have concise descriptions for their actual use
+cases; file counts and ordinary engineering keywords do not force a pipeline.
 
 ---
 
 ## What this installs
 
-- **1 spec document** (`~/.claude/AGENTIC.md`) -- the full framework spec imported into every session via `CLAUDE.md`. ~280 lines (~23KB), loaded once per session; `skills/agentic-workflow/SKILL.md` adds only ~1.8KB as a pointer at it instead of duplicating the doctrine.
+- **1 entry document** (`~/.claude/AGENTIC.md`) -- shared guidance imported via `CLAUDE.md`, with conditional references packaged inside the workflow skill.
 - **10 subagent definitions** in `~/.claude/agents/`: planner, auditor, reviewer, builder-smart, builder-fast, builder-trivial, finder, researcher, tester, watcher
 - **6 slash commands** in `~/.claude/commands/`: `/agentic`, `/init-agentic`, `/handoff`, `/blocker`, `/known-issue`, `/qq`
 - **4 hook scripts** in `~/.claude/hooks/`: `orchestrator.sh` (UserPromptSubmit reinforcement), `session-scan.sh` (SessionStart budgeted ledger digest), `pre-compact.sh` (PreCompact in-flight card snapshot), `stop-ledger-audit.sh` (Stop ledger hygiene audit)
@@ -36,12 +36,14 @@ Lightweight multi-agent orchestration conventions for Claude Code.
 
 This framework treats three external tools as first-class infrastructure:
 
-- **[GitNexus](https://github.com/abhigyanpatwari/GitNexus)** — mandatory first stop for structural code questions (call chains, impact, architecture) when the repo is indexed. Query before grepping.
-- **[context-mode](https://github.com/mksglu/context-mode)** — mandatory sandbox for large outputs (file reads, logs, test runs) so raw data never enters the context window.
-- **[context7](https://github.com/upstash/context7)** — mandatory verification of library/API/CLI behavior before asserting it; never from training memory.
+- **[GitNexus](https://github.com/abhigyanpatwari/GitNexus)** — indexed structural and impact questions, with bounded source inspection for gaps.
+- **[context-mode](https://github.com/mksglu/context-mode)** — processing large searches, logs, and data; native reads and edits remain appropriate for patching.
+- **[context7](https://github.com/upstash/context7)** — primary documentation for uncertain or version-sensitive API and CLI behavior.
 - **[RTK](https://github.com/rtk-ai/rtk)** — token-filtered shell command proxy for routine ops.
 
-These are not bundled. Install separately. **Fail-loud rule**: when one of their MCP calls errors, the orchestrator and every subagent report the exact tool + verbatim error to the user instead of silently degrading to raw grep / web / training-data recall — silent fallback is how hallucinations ship.
+These are not bundled. Report tool failures and any evidence gaps, then use an
+available, permitted alternative. Installing tools or expanding permissions is
+a separate task.
 
 ---
 
@@ -88,7 +90,8 @@ Removes the framework files, installed skills, and permission globs. By default 
 
 ## Model mapping
 
-Doctrine: **opus is the general, sonnet the soldiers, haiku the scouts.**
+These aliases configure delegated Claude Code roles. They do not change the
+main conversation's selected model or require delegation.
 
 - **Inherit** (rides the session model) -- Planner and Auditor: the general — plans and diagnoses, doesn't fight; deep deliberation at whatever capability the session is already running.
 - **Opus** -- builder-smart: the general picking up a weapon — exception only, when a sonnet attempt failed or the code demands strategy-grade reasoning.
@@ -103,7 +106,8 @@ Doctrine: **opus is the general, sonnet the soldiers, haiku the scouts.**
 project-root/
 ├── .localdev/                      # add to .gitignore (not auto-ignored)
 │   └── workflow/
-│       ├── todo.md                 # tasks + done criteria
+│       ├── todo.md                 # open tasks + done criteria
+│       ├── done.md                 # append-only completion evidence
 │       ├── blockers.md             # unresolved ambiguity (halts work)
 │       ├── findings.md             # ephemeral intra-session discoveries
 │       └── handoffs/
@@ -135,12 +139,15 @@ Edit `AGENTIC.md` or any agent/command file in this repo, then re-run `install.s
 
 ## Example prompts
 
-These natural-language prompts trigger orchestrator dispatch automatically:
+Define the outcome and any useful stopping boundary:
 
-- `"Refactor the auth middleware to use the new token model and add retry logic."` -- routes to builder-smart via planner brief.
-- `"Where is the rate-limiter called in the codebase?"` -- routes to finder (read-only, parallel-safe).
-- `"Leave a handoff — I'm picking this up tomorrow."` -- triggers `/handoff` flow from current session context.
-- `"This bug only appears in production. Investigate and fix it."` -- triggers full-tier pipeline: finder traces call chain, builder-smart patches, tester validates.
+- `"Refactor the auth middleware to use the new token model. Preserve retry behavior and run the affected tests."`
+- `"Find the rate-limiter's callers and explain the request path."`
+- `"Leave a handoff — I'm picking this up tomorrow."`
+- `"Investigate this production-only bug, implement the fix, and validate the behavior locally. Report any remaining production evidence gap."`
+
+The task determines the needed workflow; these prompts do not automatically
+dispatch agents or authorize production changes.
 
 ---
 
