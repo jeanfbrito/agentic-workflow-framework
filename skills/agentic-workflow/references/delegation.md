@@ -67,6 +67,13 @@ The main thread owns long-lived servers in a process session that survives
 agent completion. A watcher handles finite jobs or logfile digests; it does not
 own server lifetime or poll other agents. Preserve a requested running server.
 
+Match the waiting mechanism to the length of the wait. A watcher suits a job that
+finishes within the attention it can hold; on a multi-minute remote wait such as
+CI it tends to return early while reporting that it is still monitoring. Run
+those from the main thread as a backgrounded command that exits on completion —
+`gh run watch <id> --exit-status` for a GitHub Actions run — and let the exit
+notification arrive.
+
 For larger fan-outs, make dependencies and result formats explicit. Use a
 Workflow tool only if it exists and its use is authorized; no fan-out threshold
 constitutes an automatic tool opt-in.
