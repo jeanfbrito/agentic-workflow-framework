@@ -39,6 +39,11 @@ Ask when missing information materially changes the outcome or an action needs
 authorization. Continue independent work while a required answer is pending.
 Do not add a planning approval or repeat approval for an already authorized step.
 
+Read the request's register. A flat requirement is a constraint; one hedged with
+"in my opinion" or "I think" invites a counter-proposal when evidence supports
+one. When the user states what they do not understand, explain that mechanism in
+the report rather than assuming familiarity.
+
 ## Completion and Evidence
 
 Carry the requested work through implementation and the checks needed to make
@@ -56,13 +61,23 @@ the real path when available. Distinguish source inspection, mocked tests, and
 live verification. If a required check cannot run, report `UNVERIFIED`, the
 reason, and what was checked; complete unaffected work before handing back.
 
+When verification requires expensive setup — provisioning a machine, building a
+desktop app, configuring a new environment — audit the change for likely failure
+first and report that risk before paying the setup cost.
+
 After two failed approaches to the same problem, diagnose the root constraint
 before trying another implementation. Record the failed approaches on an active
 card. Use an auditor only when delegation is authorized and useful; otherwise
 diagnose locally. This checkpoint does not require a routine user approval.
 
-Stop when the requested outcome and its focused checks are complete. Report the
-result, evidence, and remaining limitations. Do not commit or push unless asked.
+Take an offered early exit as soon as its condition is met. If the request says
+to stop and report on finding a simple fix, stop there rather than completing the
+survey of alternatives.
+
+Stop when the requested outcome and its focused checks are complete. Lead a plan,
+audit, or review report with a short plain-language statement of the problem and
+the proposed action, before the supporting detail. Report the result, evidence,
+and remaining limitations. Do not commit or push unless asked.
 
 ## Tools
 
