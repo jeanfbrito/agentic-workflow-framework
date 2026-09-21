@@ -23,6 +23,17 @@ Choose enough structure for the task:
 to delegate or perform external actions. Infer the tier when omitted. Existing
 "do it yourself" and "off orchestrator" requests continue to disable delegation.
 
+Cost follows tier. Each role already carries its model — `finder`, `watcher`,
+`tester`, `researcher` on the cheapest tier; `reviewer` and `builder-fast`
+mid-tier; `builder-smart` only for reasoning-heavy work — so delegate through
+the role rather than a hand-configured agent call, and cost is set once.
+Harness effort toggles (ultracode, effort levels) raise reasoning depth for the
+current task; they do not change the tier and do not authorize a multi-agent
+`Workflow` fan-out. A fan-out needs an explicit request in the user's words.
+Reviewing a small diff is targeted searches plus at most one `reviewer`, never a
+finder per risk dimension; reach for a fan-out only when the question cannot be
+held in one context.
+
 ## Context and Decisions
 
 Reuse context already available. For continuing work, read the relevant open

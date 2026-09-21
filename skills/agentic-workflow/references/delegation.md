@@ -43,7 +43,7 @@ The main thread owns task-state decisions; workers return proposed ledger entrie
 ## Dispatch and Continuation
 
 Run independent work concurrently only when useful local work or another agent
-can proceed beside it. If the runtime supports foreground dispatch, prefer it
+can proceed beside it. When the user says "fan out subagents to work in parallel" or "fanout subagents", dispatch independent work concurrently under these rules. If the runtime supports foreground dispatch, prefer it
 for a sole critical-path agent. Use the active runtime's actual tool schema;
 Claude-specific flags and message behavior are not portable to other runtimes.
 
