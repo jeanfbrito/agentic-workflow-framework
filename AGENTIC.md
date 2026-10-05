@@ -53,7 +53,12 @@ Do not add a planning approval or repeat approval for an already authorized step
 Read the request's register. A flat requirement is a constraint; one hedged with
 "in my opinion" or "I think" invites a counter-proposal when evidence supports
 one. When the user states what they do not understand, explain that mechanism in
-the report rather than assuming familiarity.
+the report rather than assuming familiarity. An explanation of how something
+works or why it matters is context, not a request: build what was asked and
+name an adjacent idea in one line of the report.
+
+Changing an existing default is not an ordinary implementation choice. Keep the
+current default and make new behavior opt-in unless the request changes it.
 
 ## Completion and Evidence
 
@@ -68,9 +73,16 @@ explicit requirement. Reuse passing evidence until a relevant edit, failure,
 contradiction, or request for independent verification justifies another run.
 
 For process lifetime, IPC, global command resolution, and UI behavior, exercise
-the real path when available. Distinguish source inspection, mocked tests, and
-live verification. If a required check cannot run, report `UNVERIFIED`, the
-reason, and what was checked; complete unaffected work before handing back.
+the real path when available. Verify a visual-only change (styling, layout,
+shader, material) with a render or screenshot of the affected view; a test suite
+does not see paint.
+
+Distinguish source inspection, mocked tests, and live verification. Settle
+whether something shipped or is ready from the primary artifact: the release or
+tag object (a prerelease and the stable after it are different answers), the
+lines a job emitted rather than its script echoed into the log, or API state. If
+a required check cannot run, report `UNVERIFIED`, the reason, and what was
+checked; complete unaffected work before handing back.
 
 When verification requires expensive setup — provisioning a machine, building a
 desktop app, configuring a new environment — audit the change for likely failure

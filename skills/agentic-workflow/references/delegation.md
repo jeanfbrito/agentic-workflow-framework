@@ -30,8 +30,10 @@ risk or request, rather than automatically repeating each card's checks.
 
 Give the agent a concrete outcome, known paths or graph query, file ownership,
 constraints, focused verification, and an output shape. Scouts need a bounded
-question and a search budget; return partial findings and the unresolved gap
-when the budget is exhausted. Avoid dumping unrelated conversation history.
+question and a search budget; builders need a verification budget: targeted
+checks while iterating, one full-suite run at the end. Either returns partial
+findings and the unresolved gap when its budget is exhausted. Avoid dumping
+unrelated conversation history.
 
 Workers share responsibility with other contributors. Preserve their edits.
 Serialize overlapping write scopes, or use real isolated worktrees if the

@@ -24,6 +24,11 @@ Treat bot and agent comments as hypotheses to check against the code and request
 Before changing an invariant, schema, or contract, inspect the affected callers
 and consumers. Do not apply a suggestion solely because a reviewer made it.
 
+Fix every valid finding on the branch before merging, including a pre-existing
+issue the change makes likelier to surface, with bot threads resolved and the
+PR body current. Deferring a finding to a follow-up is the user's call, asked
+before the merge.
+
 ## Engineering Reports
 
 Preserve technical truth in postmortems, PR descriptions, changelogs, and incident
