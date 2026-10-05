@@ -17,5 +17,10 @@ Read [references/ledgers.md](references/ledgers.md) when recording or resuming
 project work. Read [references/delegation.md](references/delegation.md) when
 delegation is authorized and useful. Load only the relevant reference.
 
+When the user asks to stop, pause, or "how much until we can stop": land a
+verified checkpoint first, write `handoffs/<task>.md`, flip `[doing]` to
+`[todo]` (or `[blocked]`). A leftover `[doing]` card gets ACTION REQUIRED.
+Do not mark done unless the card's DoD actually passed.
+
 Complete the requested outcome and focused checks under existing authorization.
 Invoking this skill does not grant additional permissions or require delegation.

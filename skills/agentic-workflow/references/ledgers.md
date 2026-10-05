@@ -41,6 +41,16 @@ independent work. Resolve ordinary implementation choices without a blocker.
 The H2 date prefix is a parser contract: the SessionStart hook recognizes
 `^## [0-9]{4}-`. Remove resolved blockers and update the matching card.
 
+## Pause / stop
+
+When the user asks to stop, pause, hand off, or "how much until we can stop":
+
+1. Land a verified checkpoint first (checks still pass; no half-applied change). Then write the handoff.
+2. Flip `[doing]` → `[todo]` with a `Handoff:` path, or `[blocked]` plus a `blockers.md` entry. A leftover `[doing]` card gets ACTION REQUIRED.
+3. Do not move the card to `done.md` unless its DoD actually passed.
+
+"Write a handoff" then "don't leave work, finish it to keep stable" is one instruction: checkpoint, then hand off.
+
 ## Handoffs and Findings
 
 When work will continue in another session, write `handoffs/<task-name>.md`:
