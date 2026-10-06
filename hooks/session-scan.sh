@@ -13,10 +13,11 @@
 #      a snapshot from hooks/pre-compact.sh exists and is <24h old) --
 #      in-flight [doing]/[blocked] card titles from before the compaction,
 #      snapshot deleted after injection
+#   0b. standing orders (.localdev/workflow/standing.md), verbatim
 #   1. pending audit file (.localdev/workflow/_audit-pending.md), verbatim,
 #      then deleted (regardless of whether it fit -- an oversized audit
 #      file must not recreate itself forever)
-#   2. active blocker H2 titles
+#   2. active blocker H2 titles + each one's "Default if no answer" line
 #   3. open [todo]/[doing]/[blocked] card titles + their Attempts line
 #   4. handoff filenames + age (stale >7d warning kept)
 #   5. "agentic: armed" -- only when nothing else was printed
@@ -125,6 +126,18 @@ def main():
             except Exception:
                 pass
 
+    # 0b. Standing orders -- verbatim (not clipped), never deleted.
+    standing_path = os.path.join(WORKFLOW_DIR, "standing.md")
+    if os.path.isfile(standing_path):
+        try:
+            with open(standing_path) as fh:
+                standing_text = fh.read().rstrip("\n")
+        except Exception:
+            standing_text = ""
+        if standing_text.strip():
+            add(["Standing orders (.localdev/workflow/standing.md):"]
+                + standing_text.split("\n"))
+
     # 1. Pending audit file -- verbatim (not clipped), then always deleted.
     audit_path = os.path.join(WORKFLOW_DIR, "_audit-pending.md")
     if os.path.isfile(audit_path):
@@ -148,10 +161,19 @@ def main():
                 blocker_lines = fh.readlines()
         except Exception:
             blocker_lines = []
-        for raw_line in blocker_lines:
+        n = len(blocker_lines)
+        for i, raw_line in enumerate(blocker_lines):
             if re.match(r"^## [0-9]{4}-", raw_line):
                 title = raw_line.rstrip("\n")[3:]
-                add([clip(f"⚠️  Active blocker: {title}")])
+                blocker_block = [clip(f"⚠️  Active blocker: {title}")]
+                j = i + 1
+                while j < n and not blocker_lines[j].startswith("## "):
+                    dm = re.match(r"^-\s*Default if no answer:\s*(.*)", blocker_lines[j])
+                    if dm:
+                        blocker_block.append(clip(f"   Default if no answer: {dm.group(1).strip()}"))
+                        break
+                    j += 1
+                add(blocker_block)
 
     # 3. Open card titles + Attempts line.
     todo_path = os.path.join(WORKFLOW_DIR, "todo.md")

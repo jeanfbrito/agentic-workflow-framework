@@ -422,6 +422,147 @@ rm -rf "$TMPDIR_LA_NOWF"
 rm -rf "$TMPDIR_LA"
 
 # ---------------------------------------------------------------------------
+# Check 6e -- blocker defaults + standing orders in session-scan.sh
+# ---------------------------------------------------------------------------
+
+TMPDIR_SS=$(mktemp -d)
+mkdir -p "$TMPDIR_SS/.localdev/workflow"
+cat > "$TMPDIR_SS/.localdev/workflow/blockers.md" <<'EOF'
+# Active Blockers
+
+## 2026-10-05 10:00 -- pick the cache backend
+- Context: test
+- What I need: redis or sqlite
+- Default if no answer: use sqlite behind the CacheStore interface
+- Files involved: src/cache.ts
+EOF
+cat > "$TMPDIR_SS/.localdev/workflow/standing.md" <<'EOF'
+1. Never push without asking.
+2. Run the focused spec, not the full suite.
+EOF
+cat > "$TMPDIR_SS/.localdev/workflow/todo.md" <<'EOF'
+# Todo
+
+## [blocked] Cache backend
+- Attempts: 0/2
+EOF
+(cd "$TMPDIR_SS" && echo '{"trigger":"auto"}' | bash "$SCRIPT_DIR/hooks/pre-compact.sh" >/dev/null 2>&1)
+SS_OUT=$(cd "$TMPDIR_SS" && echo '{"source":"compact"}' | bash "$SCRIPT_DIR/hooks/session-scan.sh" 2>/dev/null)
+SS_CHECK=$(printf '%s' "$SS_OUT" | python3 -c '
+import json, sys
+ctx = json.load(sys.stdin)["hookSpecificOutput"]["additionalContext"]
+lines = ctx.split("\n")
+want = "1. Never push without asking.\n2. Run the focused spec, not the full suite."
+bi = next(i for i, l in enumerate(lines) if "Active blocker: 2026-10-05 10:00" in l)
+ok_default = lines[bi + 1] == "   Default if no answer: use sqlite behind the CacheStore interface"
+ok_standing = want in ctx
+ok_order = 0 <= ctx.find("compacted/resumed") < ctx.find(want) < ctx.find("Active blocker")
+print("PASS" if ok_default else "FAIL-default", "PASS" if ok_standing and ok_order else "FAIL-standing")
+' 2>/dev/null)
+if [ "${SS_CHECK%% *}" = "PASS" ]; then
+  check "session-scan.sh prints each blocker's 'Default if no answer' under its title" "$PASS"
+else
+  check "session-scan.sh prints each blocker's 'Default if no answer' under its title" "$FAIL"
+fi
+if [ "${SS_CHECK##* }" = "PASS" ]; then
+  check "session-scan.sh injects standing.md verbatim, after the compaction notice (source=compact)" "$PASS"
+else
+  check "session-scan.sh injects standing.md verbatim, after the compaction notice (source=compact)" "$FAIL"
+fi
+rm -rf "$TMPDIR_SS"
+
+# ---------------------------------------------------------------------------
+# Check 6f -- stop-ledger-audit.sh Verified-sha and decision-log checks
+# ---------------------------------------------------------------------------
+
+TMPDIR_VS=$(mktemp -d)
+mkdir -p "$TMPDIR_VS/.localdev/workflow"
+(cd "$TMPDIR_VS" && git init -q && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m init) >/dev/null 2>&1
+VS_HEAD=$(cd "$TMPDIR_VS" && git rev-parse --short HEAD 2>/dev/null)
+cat > "$TMPDIR_VS/.localdev/workflow/todo.md" <<'EOF'
+# Todo
+
+## [todo] Stale card
+- Tier: full
+- Verified: test @ 0000000
+EOF
+echo "# Done" > "$TMPDIR_VS/.localdev/workflow/done.md"
+VS_TRANSCRIPT="$TMPDIR_VS/transcript.jsonl"
+echo '{"type":"user","timestamp":"2026-08-09T03:00:00.000Z","message":{"role":"user","content":"start"}}' > "$VS_TRANSCRIPT"
+VS_JSON=$(python3 -c "import json,sys; print(json.dumps({'transcript_path': sys.argv[1], 'session_id': 's1'}))" "$VS_TRANSCRIPT")
+VS_OUT1=$(cd "$TMPDIR_VS" && echo "$VS_JSON" | bash "$SCRIPT_DIR/hooks/stop-ledger-audit.sh" 2>/dev/null)
+VS_OUT2=$(cd "$TMPDIR_VS" && echo "$VS_JSON" | bash "$SCRIPT_DIR/hooks/stop-ledger-audit.sh" 2>/dev/null)
+if [ -n "$VS_HEAD" ] && echo "$VS_OUT1" | grep -q "verified at 0000000, HEAD is $VS_HEAD" \
+   && echo "$VS_OUT1" | grep -q 'has no decisions.tsv row this session' \
+   && echo "$VS_OUT1" | python3 -m json.tool >/dev/null 2>&1; then
+  check "stop-ledger-audit.sh: stale Verified sha and missing full-tier decision row both warn" "$PASS"
+else
+  check "stop-ledger-audit.sh: stale Verified sha and missing full-tier decision row both warn" "$FAIL"
+fi
+if [ -z "$VS_OUT2" ]; then
+  check "stop-ledger-audit.sh: same session, same warnings -> rate-limited (silent)" "$PASS"
+else
+  check "stop-ledger-audit.sh: same session, same warnings -> rate-limited (silent)" "$FAIL"
+fi
+VS_AGENT=$(python3 -c "import json,sys; print(json.dumps({'transcript_path': sys.argv[1], 'session_id': 's2', 'agent_id': 'a1'}))" "$VS_TRANSCRIPT")
+VS_OUT3=$(cd "$TMPDIR_VS" && echo "$VS_AGENT" | bash "$SCRIPT_DIR/hooks/stop-ledger-audit.sh" 2>/dev/null)
+if [ -z "$VS_OUT3" ]; then
+  check "stop-ledger-audit.sh: subagent payload (agent_id) is skipped" "$PASS"
+else
+  check "stop-ledger-audit.sh: subagent payload (agent_id) is skipped" "$FAIL"
+fi
+sed -i.bak "s/@ 0000000/@ $VS_HEAD/" "$TMPDIR_VS/.localdev/workflow/todo.md"
+(cd "$TMPDIR_VS" && bash "$SCRIPT_DIR/scripts/ledger-append.sh" decision build "chose X" "faster" "abc123" "tests green")
+VS_JSON3=$(python3 -c "import json,sys; print(json.dumps({'transcript_path': sys.argv[1], 'session_id': 's3'}))" "$VS_TRANSCRIPT")
+VS_OUT4=$(cd "$TMPDIR_VS" && echo "$VS_JSON3" | bash "$SCRIPT_DIR/hooks/stop-ledger-audit.sh" 2>/dev/null)
+if [ -z "$VS_OUT4" ]; then
+  check "stop-ledger-audit.sh: Verified @ HEAD + decision row this session -> silent" "$PASS"
+else
+  check "stop-ledger-audit.sh: Verified @ HEAD + decision row this session -> silent" "$FAIL"
+fi
+rm -rf "$TMPDIR_VS"
+
+# ---------------------------------------------------------------------------
+# Check 6g -- ledger-append.sh decision target (header, sanitize, usage)
+# ---------------------------------------------------------------------------
+
+TMPDIR_DL=$(mktemp -d)
+mkdir -p "$TMPDIR_DL/.localdev/workflow"
+(
+  cd "$TMPDIR_DL" || exit 1
+  bash "$SCRIPT_DIR/scripts/ledger-append.sh" decision frame "split	the
+card" "=cmd()" "-1" "@here" >/dev/null 2>&1
+  bash "$SCRIPT_DIR/scripts/ledger-append.sh" decision build "kept default" "reversible" "+abc" "open" >/dev/null 2>&1
+)
+DL_CHECK=$(python3 - "$TMPDIR_DL/.localdev/workflow/decisions.tsv" <<'PYEOF'
+import re, sys
+rows = open(sys.argv[1]).read().split("\n")
+ok = (
+    rows[0] == "ts\tphase\tdecision\twhy\tevidence\tresult"
+    and len(rows) == 4 and rows[3] == ""
+    and all(len(r.split("\t")) == 6 for r in rows[1:3])
+    and re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", rows[1].split("\t")[0])
+    and rows[1].split("\t")[1:] == ["frame", "split the card", "'=cmd()", "'-1", "'@here"]
+    and rows[2].split("\t")[4] == "'+abc"
+)
+print("PASS" if ok else "FAIL")
+PYEOF
+)
+if [ "$DL_CHECK" = "PASS" ]; then
+  check "ledger-append.sh decision: header once, 6 cells, tabs/newlines stripped, = + - @ escaped" "$PASS"
+else
+  check "ledger-append.sh decision: header once, 6 cells, tabs/newlines stripped, = + - @ escaped" "$FAIL"
+fi
+(cd "$TMPDIR_DL" && bash "$SCRIPT_DIR/scripts/ledger-append.sh" decision too few >/dev/null 2>"$TMPDIR_DL/err.txt")
+DL_USAGE_EXIT=$?
+if [ "$DL_USAGE_EXIT" -ne 0 ] && [ -s "$TMPDIR_DL/err.txt" ]; then
+  check "ledger-append.sh decision: wrong arg count exits nonzero with usage on stderr" "$PASS"
+else
+  check "ledger-append.sh decision: wrong arg count exits nonzero with usage on stderr" "$FAIL"
+fi
+rm -rf "$TMPDIR_DL"
+
+# ---------------------------------------------------------------------------
 # Check 7 -- repo structural integrity (ported from Codex validate.mjs)
 # Validates the source repo at $SCRIPT_DIR, not the ~/.claude/ install.
 # ---------------------------------------------------------------------------

@@ -16,8 +16,10 @@ or small edit needs no card. `/init-agentic` supplies the directory layout.
 - Attempts: 0/2
 - DoD: <observable outcome and exact focused verification scope>
 - Deps: none
+- Verified: <live|test|type-check|UNVERIFIED> @ <short-sha>
 ```
 
+Update `Verified` after each check run. Stop warns when its sha is not HEAD.
 Track failed approaches in `Attempts`. At two failures, diagnose the root
 constraint before implementing another approach. Update the card with the
 resulting decision, rather than repeating the failed approach.
@@ -25,8 +27,10 @@ resulting decision, rather than repeating the failed approach.
 ## Blockers
 
 Record a missing decision or external dependency that prevents the task from
-continuing in `blockers.md`, and mark the matching card `[blocked]`. Continue
-independent work. Resolve ordinary implementation choices without a blocker.
+continuing in `blockers.md`, and mark the matching card `[blocked]`. Keep doing
+independent work. On reversible work, proceed on the stated default and say so.
+Stop only when the action is irreversible or no safe default exists. Resolve
+ordinary implementation choices without a blocker.
 
 ```markdown
 # Active Blockers
@@ -35,6 +39,7 @@ independent work. Resolve ordinary implementation choices without a blocker.
 - Context: <task and current work>
 - Blocker: <what cannot be resolved from available evidence>
 - What I need: <decision or external change>
+- Default if no answer: <action>
 - Files involved: <paths>
 ```
 
@@ -60,6 +65,7 @@ When work will continue in another session, write `handoffs/<task-name>.md`:
 
 ## Status
 <completed work and relevant decisions>
+Verified: <live|test|type-check|UNVERIFIED> @ <short-sha>
 
 ## Next
 - [ ] <next action>
@@ -90,6 +96,7 @@ task's handoff into the entry, then remove only that completed handoff.
 - Links: <PR, issue, commit, or none>
 - Files: <key paths>
 - Attempts: <number of failed approaches>
+- Verified: <live|test|type-check|UNVERIFIED> @ <short-sha>
 ```
 
 Keep the timestamped H2 format. `done.md` is append-only; search relevant history
@@ -97,9 +104,22 @@ instead of reading the entire log. When agents share a tree, the main thread
 owns card and blocker edits. Serialize shared appends or use the installed
 `ledger-append.sh` helper, which locks appends to `done.md` and `findings.md`.
 
+## Standing Orders
+
+`standing.md` holds numbered standing orders, one per line. Add one when the user
+repeats an instruction. Subagent briefs include the file's content.
+
+## Decision Log
+
+On full-tier or unattended runs, log one row per decision (a fork, pivot, revert,
+or verified checkpoint) with an evidence pointer (sha, `file:line`, PR, path).
+The command `ledger-append.sh decision <phase> <decision> <why> <evidence> <result>`
+appends to `decisions.tsv`. Stop nags when an open `- Tier: full` card has no row this session.
+
 ## Hook Context
 
-SessionStart supplies a limited digest of blockers, cards, and handoffs.
+SessionStart supplies a limited digest of standing orders, blockers with their
+defaults, cards, and handoffs.
 PreCompact snapshots in-flight cards; on resume inspect live agents before
 dispatching replacement work. Stop audits ledger consistency and reports
 advisory findings. These reminders are context, not a replacement for the user's

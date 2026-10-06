@@ -24,7 +24,7 @@ cases; file counts and ordinary engineering keywords do not force a pipeline.
 - **10 subagent definitions** in `~/.claude/agents/`: planner, auditor, reviewer, builder-smart, builder-fast, builder-trivial, finder, researcher, tester, watcher
 - **6 slash commands** in `~/.claude/commands/`: `/agentic`, `/init-agentic`, `/handoff`, `/blocker`, `/known-issue`, `/qq`
 - **4 hook scripts** in `~/.claude/hooks/`: `orchestrator.sh` (UserPromptSubmit reinforcement), `session-scan.sh` (SessionStart budgeted ledger digest), `pre-compact.sh` (PreCompact in-flight card snapshot), `stop-ledger-audit.sh` (Stop ledger hygiene audit)
-- **1 utility script** (`~/.claude/hooks/ledger-append.sh`) -- lock-guarded `done.md`/`findings.md` appends; installed alongside the hooks but not wired to a hook event itself
+- **1 utility script** (`~/.claude/hooks/ledger-append.sh`) -- lock-guarded `done.md`/`findings.md` appends and `decisions.tsv` rows. It is installed alongside the hooks but not wired to a hook event itself
 - **4 `settings.json` hook entries** -- SessionStart (budgeted ledger digest) + PreCompact (in-flight card snapshot) + Stop (ledger hygiene audit) + UserPromptSubmit (orchestrator reinforcement)
 - **1 `CLAUDE.md` import line** -- `@AGENTIC.md` so the spec loads globally in every Claude Code session
 - **2 skills** in `~/.claude/skills/`: agentic-workflow and personal-engineering-rules

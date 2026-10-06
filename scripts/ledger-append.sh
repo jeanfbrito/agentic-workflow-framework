@@ -7,7 +7,12 @@
 # or fuse their blocks together.
 #
 # Usage: bash ledger-append.sh <done|findings>   (entry text read from stdin)
+#        bash ledger-append.sh decision <phase> <decision> <why> <evidence> <result>
 #
+# - `decision` appends one TSV row (ISO-8601 UTC timestamp first) to
+#   decisions.tsv, writing the header row when the file is empty or absent.
+#   Cells are sanitized: tabs/newlines/CRs become spaces, and a cell starting
+#   with = + - @ gets a leading ' so spreadsheets never run it as a formula.
 # - Exits nonzero + stderr on an unknown target, or when .localdev/workflow/
 #   doesn't exist in CWD (nothing to append to).
 # - Empty stdin is a clean no-op (exit 0, nothing written) -- there's
@@ -27,11 +32,17 @@ TARGET="${1:-}"
 case "$TARGET" in
   done)     FILE="done.md" ;;
   findings) FILE="findings.md" ;;
+  decision) FILE="decisions.tsv" ;;
   *)
-    echo "ledger-append.sh: unknown target '$TARGET' -- expected 'done' or 'findings'" >&2
+    echo "ledger-append.sh: unknown target '$TARGET' -- expected 'done', 'findings' or 'decision'" >&2
     exit 1
     ;;
 esac
+
+if [ "$TARGET" = "decision" ] && [ "$#" -ne 6 ]; then
+  echo "ledger-append.sh: usage: ledger-append.sh decision <phase> <decision> <why> <evidence> <result>" >&2
+  exit 1
+fi
 
 WORKFLOW_DIR=".localdev/workflow"
 if [ ! -d "$WORKFLOW_DIR" ]; then
@@ -39,9 +50,25 @@ if [ ! -d "$WORKFLOW_DIR" ]; then
   exit 1
 fi
 
-ENTRY="$(cat)"
-if [ -z "$ENTRY" ]; then
-  exit 0  # clean no-op -- nothing to append
+clean() {
+  local v
+  v=$(printf '%s' "$1" | tr '\t\n\r' '   ')
+  case "$v" in
+    =*|+*|-*|@*) printf "'%s" "$v" ;;
+    *) printf '%s' "$v" ;;
+  esac
+}
+
+if [ "$TARGET" = "decision" ]; then
+  ROW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  for cell in "${@:2}"; do
+    ROW="$ROW"$'\t'"$(clean "$cell")"
+  done
+else
+  ENTRY="$(cat)"
+  if [ -z "$ENTRY" ]; then
+    exit 0  # clean no-op -- nothing to append
+  fi
 fi
 
 LEDGER_PATH="$WORKFLOW_DIR/$FILE"
@@ -79,12 +106,18 @@ while :; do
   elapsed_ms=$((elapsed_ms + POLL_MS))
 done
 
-BLOCK=$'\n'"$ENTRY"$'\n'
-if [ "$timeout_hit" -eq 1 ]; then
-  BLOCK="${BLOCK}<!-- lock-timeout -->"$'\n'
+if [ "$TARGET" = "decision" ]; then
+  if [ ! -s "$LEDGER_PATH" ]; then
+    printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n' >> "$LEDGER_PATH"
+  fi
+  printf '%s\n' "$ROW" >> "$LEDGER_PATH"
+else
+  BLOCK=$'\n'"$ENTRY"$'\n'
+  if [ "$timeout_hit" -eq 1 ]; then
+    BLOCK="${BLOCK}<!-- lock-timeout -->"$'\n'
+  fi
+  printf '%s' "$BLOCK" >> "$LEDGER_PATH"
 fi
-
-printf '%s' "$BLOCK" >> "$LEDGER_PATH"
 
 if [ "$acquired" -eq 1 ]; then
   rmdir "$LOCK_DIR" 2>/dev/null || rm -rf "$LOCK_DIR" 2>/dev/null

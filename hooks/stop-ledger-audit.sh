@@ -13,6 +13,14 @@
 #      written/edited this session
 #   3. blockers.md has entries with no matching [blocked] card in todo.md,
 #      or vice versa
+#   4. an open card's `- Verified: <kind> @ <sha>` names a sha that is not
+#      `git rev-parse --short HEAD` (rate-limited)
+#   5. an open card marked `- Tier: full` and no decisions.tsv row stamped
+#      at/after the session's first transcript timestamp (rate-limited)
+#
+# Rate limit (checks 4-5): each distinct warning fires once per session
+# (payload session_id, else transcript_path); state lives in
+# .localdev/workflow/.audit-nag-state.json.
 #
 # Delivery: overwrites (never appends) .localdev/workflow/_audit-pending.md
 # -- session-scan.sh (SessionStart) injects it into the next digest and
@@ -22,7 +30,8 @@
 #
 # Must be fast (<1s) and NEVER block the stop: always exits 0. Skips
 # entirely when .localdev/workflow/ is absent, transcript_path is
-# missing/unreadable, stop_hook_active is true (avoid loops), or the
+# missing/unreadable, stop_hook_active is true (avoid loops), agent_id is
+# present (subagent call), or the
 # transcript is fully unparseable (schema drift/garbage -- no signal, no
 # warning). Transcript JSONL schema is UNDOCUMENTED; parsed defensively,
 # bad lines skipped individually.
@@ -40,6 +49,7 @@ import datetime
 import json
 import os
 import re
+import subprocess
 
 WORKFLOW_DIR = ".localdev/workflow"
 
@@ -119,6 +129,9 @@ def main():
 
     if payload.get("stop_hook_active"):
         return  # already continuing from a stop hook -- avoid loops
+
+    if payload.get("agent_id"):
+        return  # subagent call -- ledger hygiene belongs to the main thread
 
     if not os.path.isdir(WORKFLOW_DIR):
         return  # no framework state in this repo
@@ -207,6 +220,102 @@ def main():
         warnings.append("blockers.md has entries but todo.md has no matching [blocked] card")
     elif has_blocked_card and not has_blocker_entries:
         warnings.append("todo.md has a [blocked] card but blockers.md has no entries")
+
+    # Checks 4-5 -- per-card checks over open cards, rate-limited.
+    open_cards = []  # (title, verified_sha, is_full_tier)
+    if os.path.isfile(todo_path):
+        try:
+            with open(todo_path) as fh:
+                card = None
+                for raw_line in fh:
+                    m = re.match(r"^## \[(todo|doing|blocked)\]\s*(.*)", raw_line)
+                    if m:
+                        card = [m.group(2).strip(), None, False]
+                        open_cards.append(card)
+                        continue
+                    if raw_line.startswith("## "):
+                        card = None
+                        continue
+                    if card is None:
+                        continue
+                    vm = re.match(r"^-\s*Verified:\s*.*?@\s*([0-9a-fA-F]{4,40})\b", raw_line)
+                    if vm:
+                        card[1] = vm.group(1).lower()
+                    if re.match(r"^-\s*Tier:\s*full\b", raw_line, re.IGNORECASE):
+                        card[2] = True
+        except Exception:
+            open_cards = []
+
+    candidates = []  # (rate-limit key, warning)
+
+    if any(c[1] for c in open_cards):
+        head = None
+        try:
+            head = subprocess.run(
+                ["git", "rev-parse", "--short", "HEAD"],
+                capture_output=True, text=True, timeout=2,
+            ).stdout.strip().lower() or None
+        except Exception:
+            head = None
+        if head:
+            for title, sha, _ in open_cards:
+                if sha and not (sha.startswith(head) or head.startswith(sha)):
+                    candidates.append((
+                        f"verified|{title}|{sha}|{head}",
+                        f"card \"{title}\" verified at {sha}, HEAD is {head}"
+                        " — re-run its checks or update Verified",
+                    ))
+
+    full_titles = [c[0] for c in open_cards if c[2]]
+    if full_titles and first_ts:
+        try:
+            session_start = parse_iso(first_ts)
+        except Exception:
+            session_start = None
+        if session_start is not None:
+            logged = False
+            decisions_path = os.path.join(WORKFLOW_DIR, "decisions.tsv")
+            if os.path.isfile(decisions_path):
+                try:
+                    with open(decisions_path) as fh:
+                        for raw_line in fh:
+                            cell = raw_line.split("\t", 1)[0].strip()
+                            try:
+                                if parse_iso(cell) >= session_start:
+                                    logged = True
+                                    break
+                            except Exception:
+                                continue
+                except Exception:
+                    logged = False
+            if not logged:
+                for title in full_titles:
+                    candidates.append((
+                        f"decision|{title}",
+                        f"full-tier card \"{title}\" has no decisions.tsv row this session"
+                        " — log one: ledger-append.sh decision <phase> <decision> <why> <evidence> <result>",
+                    ))
+
+    if candidates:
+        session_key = payload.get("session_id") or transcript_path
+        state_path = os.path.join(WORKFLOW_DIR, ".audit-nag-state.json")
+        try:
+            with open(state_path) as fh:
+                state = json.load(fh)
+            if not isinstance(state, dict) or state.get("session") != session_key:
+                raise ValueError
+            fired = set(state.get("fired") or [])
+        except Exception:
+            fired = set()
+        fresh = [(k, w) for k, w in candidates if k not in fired]
+        if fresh:
+            warnings.extend(w for _, w in fresh)
+            fired.update(k for k, _ in fresh)
+            try:
+                with open(state_path, "w") as fh:
+                    json.dump({"session": session_key, "fired": sorted(fired)}, fh)
+            except Exception:
+                pass
 
     if not warnings:
         return  # nothing to report -- emit nothing, leave any absent file absent
