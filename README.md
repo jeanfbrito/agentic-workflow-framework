@@ -27,7 +27,7 @@ cases; file counts and ordinary engineering keywords do not force a pipeline.
 - **1 utility script** (`~/.claude/hooks/ledger-append.sh`) -- lock-guarded `done.md`/`findings.md` appends and `decisions.tsv` rows. It is installed alongside the hooks but not wired to a hook event itself
 - **4 `settings.json` hook entries** -- SessionStart (budgeted ledger digest) + PreCompact (in-flight card snapshot) + Stop (ledger hygiene audit) + UserPromptSubmit (orchestrator reinforcement)
 - **1 `CLAUDE.md` import line** -- `@AGENTIC.md` so the spec loads globally in every Claude Code session
-- **2 skills** in `~/.claude/skills/`: agentic-workflow and personal-engineering-rules
+- **2 skills** in `~/.claude/skills/`: agentic-workflow and personal-engineering-rules. The `AGENTIC.md` Writing section uses the companion `asd-ste100` skill from [jeanfbrito/agent-skills](https://github.com/jeanfbrito/agent-skills) (`npx skills add jeanfbrito/agent-skills -s asd-ste100 -g`)
 - **6 permission globs** in `~/.claude/settings.json`: Write/Edit for `.localdev/workflow/**`, `.localdev/workflow/handoffs/**`, and `docs/KNOWN_ISSUES.md`
 
 ---

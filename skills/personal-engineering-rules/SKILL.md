@@ -1,6 +1,6 @@
 ---
 name: "personal-engineering-rules"
-description: "Apply Jean's conventions when porting reference behavior, evaluating review feedback, or writing engineering reports."
+description: "Apply Jean's conventions. Use when porting reference behavior, fixing a bug, writing or keeping a test, shaping a module boundary, evaluating review feedback, or writing engineering reports."
 ---
 
 # Personal Engineering Rules
@@ -17,6 +17,34 @@ reference repository is not a prerequisite to a scoped port.
 Prefer a root-cause fix. When a constraint calls for a workaround, make its
 limitation explicit and keep it within the requested outcome. Resolve ordinary
 implementation choices from evidence; ask only for a material missing decision.
+
+## Bug Fixes
+
+Reproduce on the surface the user sees before fixing. If it will not reproduce,
+tighten conditions or instrument until it fires. Every shipped line traces to
+runtime evidence: a change that "might help" is a hypothesis, and code a refuted
+hypothesis motivated is reverted. When something fails after a restart, suspect
+persisted state (config, caches, stored window or session state) before code.
+Order commits so the failing repro or test lands before the fix.
+
+## Tests
+
+Before keeping a test, ask whether it would still pass if every function it
+imports returned `undefined`. If yes, it cannot fail for a defect: rewrite the
+assertion or delete the test. These shapes fail this check: no or weak
+assertions (`toBeDefined`, `toBeTruthy`, `not.toThrow`), and mock-call-only
+assertions. Others are an expected value computed by the code under test, a restated
+constant or config default, and a fixture asserting on itself. Call the subject
+with one concrete input and assert the literal output or the observable effect.
+
+## Module Boundaries
+
+Assume the next contributor is an agent that sees only the files it opened,
+copies the nearest example, and takes the shortest path that compiles. Reject a
+shape with two ways to do one task, or internals importable from outside the
+module. Reject a list that must be hand-synced with another, or state written by more
+than one owner. Keep one way, make internals unreachable, derive the second
+list, and give each piece of state one owner.
 
 ## Review Feedback
 
@@ -35,6 +63,10 @@ Preserve technical truth in postmortems, PR descriptions, changelogs, and incide
 reports. Describe the observed scope and validation gaps. Use terms such as
 "regression" or "failed in production" when evidence supports them; do not soften
 an established failure or imply a failure that was not observed.
+
+Before reporting a measured number (speedup, regression, CI timing), vet it with
+the `benchmark-checklist` skill. Name what limits it. Rule out errors,
+skipped work, untuned sides, and noise.
 
 Distinguish source inspection, focused tests, and live behavior. Report a blocked
 check and its practical limit without implying that untested behavior passed.
