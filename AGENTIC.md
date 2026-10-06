@@ -73,9 +73,10 @@ explicit requirement. Reuse passing evidence until a relevant edit, failure,
 contradiction, or request for independent verification justifies another run.
 
 For process lifetime, IPC, global command resolution, and UI behavior, exercise
-the real path when available. Verify a visual-only change (styling, layout,
-shader, material) with a render or screenshot of the affected view; a test suite
-does not see paint.
+the real path when available. Try to break an interactive change: empty input,
+double submit, reload. Verify a visual-only change (styling, layout, shader,
+material) with a render or screenshot of the affected view; a test suite does
+not see paint.
 
 Distinguish source inspection, mocked tests, and live verification. Settle
 whether something shipped or is ready from the primary artifact: the release or
@@ -99,8 +100,15 @@ survey of alternatives.
 
 Stop when the requested outcome and its focused checks are complete. Lead a plan,
 audit, or review report with a short plain-language statement of the problem and
-the proposed action, before the supporting detail. Report the result, evidence,
-and remaining limitations. Do not commit or push unless asked.
+the proposed action, before the supporting detail. Report the result, the
+tradeoff taken and what it gave up, evidence, and remaining limitations. Do not
+commit or push unless asked.
+
+When a report hands work back — a finished multi-step task or a blocker — put a
+numbered list of what the user must do above everything else, most blocking
+first: one action per item, naming what to do, where, and what to send back
+(for example, "Log into Stripe, export the September refunds CSV, put it in
+inbox/"). When nothing is needed, say so in one line.
 
 ## Tools
 
