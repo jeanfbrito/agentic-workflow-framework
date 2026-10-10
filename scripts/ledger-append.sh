@@ -83,8 +83,11 @@ timeout_hit=0
 while :; do
   # Sweep a stale lock (crashed/killed holder) before every attempt.
   if [ -d "$LOCK_DIR" ]; then
-    lock_mtime=$(stat -f %m "$LOCK_DIR" 2>/dev/null || stat -c %Y "$LOCK_DIR" 2>/dev/null || echo "")
-    if [ -n "$lock_mtime" ]; then
+    # GNU stat first: on Linux, `stat -f` means filesystem status and exits 0
+    # with text output, which broke the arithmetic below under `set -u`. BSD
+    # stat rejects `-c`, so macOS falls through to `-f %m`.
+    lock_mtime=$(stat -c %Y "$LOCK_DIR" 2>/dev/null || stat -f %m "$LOCK_DIR" 2>/dev/null || echo "")
+    if [[ "$lock_mtime" =~ ^[0-9]+$ ]]; then
       lock_age=$(( $(date +%s) - lock_mtime ))
       if [ "$lock_age" -gt 60 ]; then
         rmdir "$LOCK_DIR" 2>/dev/null || rm -rf "$LOCK_DIR" 2>/dev/null
