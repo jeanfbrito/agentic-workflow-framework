@@ -15,11 +15,11 @@ jobs:
         # SC2088 (tilde in quotes not expanded) is accepted throughout the
         # install/uninstall scripts -- they intentionally document literal
         # paths like "~/.claude/..." in echo strings.
-        run: shellcheck -e SC2088 install.sh verify.sh uninstall.sh hooks/*.sh
+        run: shellcheck -e SC2088 install.sh verify.sh uninstall.sh hooks/*.sh .githooks/commit-msg
 
       - name: Bash syntax check
         run: |
-          for f in install.sh verify.sh uninstall.sh hooks/*.sh; do
+          for f in install.sh verify.sh uninstall.sh hooks/*.sh .githooks/commit-msg; do
             bash -n "$f"
           done
 

@@ -887,6 +887,50 @@ fi
 rm -rf "$RA_DIR"
 
 # ---------------------------------------------------------------------------
+# Check -- the commit-msg hook rejects the message that shipped with hard STE
+#   findings in 05137ae and accepts the clean message of f017cc5. Without a
+#   linter it warns and allows the commit. CI has no linter, so CI runs only
+#   that last part.
+# ---------------------------------------------------------------------------
+
+CM_HOOK="$SCRIPT_DIR/.githooks/commit-msg"
+CM_DIR=$(mktemp -d)
+cat > "$CM_DIR/bad" <<'MSGEOF'
+fix: clear the shellcheck findings in the role-spend and role-ab checks
+
+CI failed on shellcheck for three findings in the new verify.sh checks:
+SC2016 for a dollar sign in single quotes, SC2059 for a variable printf
+format, and SC2034 for an unused variable. The checks now use a fixed-string
+grep, a literal printf format in a helper, and print the role-ab output when
+they fail.
+MSGEOF
+cat > "$CM_DIR/good" <<'MSGEOF'
+feat: add role-spend and role-ab to measure model tiers
+
+`scripts/role-spend.py` reads the local subagent transcripts. It reports the
+model that each role ran on, the token use, and the estimated cost per role.
+MSGEOF
+STE_LINT=/nonexistent bash "$CM_HOOK" "$CM_DIR/bad" >/dev/null 2>&1; CM_NOLINT=$?
+if [ "$CM_NOLINT" -eq 0 ]; then
+  check "commit-msg hook: without a linter, warns and allows the commit" "$PASS"
+else
+  check "commit-msg hook: without a linter, warns and allows the commit (exit $CM_NOLINT)" "$FAIL"
+fi
+CM_LINT="${STE_LINT:-$HOME/.claude/skills/asd-ste100/scripts/ste-lint.py}"
+if [ -f "$CM_LINT" ]; then
+  CM_BAD_OUT=$(bash "$CM_HOOK" "$CM_DIR/bad" 2>&1); CM_BAD=$?
+  bash "$CM_HOOK" "$CM_DIR/good" >/dev/null 2>&1; CM_GOOD=$?
+  if [ "$CM_BAD" -ne 0 ] && [ "$CM_GOOD" -eq 0 ] && echo "$CM_BAD_OUT" | grep -q 'long-sentence'; then
+    check "commit-msg hook: rejects the 05137ae message, accepts a clean one" "$PASS"
+  else
+    check "commit-msg hook: rejects the 05137ae message, accepts a clean one (bad=$CM_BAD good=$CM_GOOD)" "$FAIL"
+  fi
+else
+  echo "[-] commit-msg hook: STE check skipped, no linter at $CM_LINT"
+fi
+rm -rf "$CM_DIR"
+
+# ---------------------------------------------------------------------------
 # Result
 # ---------------------------------------------------------------------------
 

@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# commit-msg -- reject a commit message with hard Simplified Technical English
+# findings. Commit messages in this repo are public, and AGENTIC.md asks for STE.
+#
+# Turn it on once per clone:   git config core.hooksPath .githooks
+# Linter: $STE_LINT, default ~/.claude/skills/asd-ste100/scripts/ste-lint.py
+# (the asd-ste100 skill from jeanfbrito/agent-skills). No linter: warn, allow.
+# A finding that must stay, such as verbatim product text: commit with
+# --no-verify and say in the body why it stays.
+
+set -u
+
+msg_file="$1"
+lint="${STE_LINT:-$HOME/.claude/skills/asd-ste100/scripts/ste-lint.py}"
+
+if [ ! -f "$lint" ]; then
+  echo "commit-msg: STE linter not found at $lint; message not checked." >&2
+  exit 0
+fi
+
+# Lint what git stores: drop comment lines and all text below the scissors line.
+body=$(sed -e '/^# -* >8 -*$/,$d' -e '/^#/d' "$msg_file")
+
+case "$body" in
+  "Merge "* | "Revert "* | "fixup! "* | "squash! "* | "amend! "*) exit 0 ;;
+esac
+
+if out=$(printf '%s\n' "$body" | python3 "$lint" 2>&1); then
+  exit 0
+fi
+
+{
+  echo "commit-msg: the message has hard STE findings. Rewrite it and commit again."
+  printf '%s\n' "$out" | grep -v '^Hedges'
+  echo "If a finding must stay, commit with --no-verify and say why in the body."
+} >&2
+exit 1

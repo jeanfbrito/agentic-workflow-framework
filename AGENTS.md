@@ -55,3 +55,19 @@ flows. Treat the graph as one lookup among several, not a gate on editing:
   agent/command markdown carry no symbols and need no graph query.
 - `detect_changes()` earns its place before a release commit that touches the
   installer lifecycle. It is not a precondition for every commit.
+
+## Commit messages
+
+Commit messages in this repo are public, so they follow Simplified Technical
+English (see `AGENTIC.md` § Writing). `.githooks/commit-msg` runs the
+`asd-ste100` linter and rejects a message with a hard finding. Turn it on once
+per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Without the linter, the hook warns and allows the commit. If a finding must
+stay, such as verbatim product text, commit with `--no-verify` and say in the
+body why it stays. `verify.sh` proves the hook rejects the message that
+shipped with hard findings in `05137ae`.
