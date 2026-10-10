@@ -857,7 +857,7 @@ with open(sys.argv[1], 'w') as f:
                             'usage': {'input_tokens': n, 'output_tokens': 0}}}) + '\n')
 PYEOF
 RS_OUT=$(CLAUDE_CONFIG_DIR="$RS_HOME" python3 "$SCRIPT_DIR/scripts/role-spend.py" --days 1 2>&1)
-if echo "$RS_OUT" | grep -q 'est\. \$0\.08 ' && echo "$RS_OUT" | grep -q '^finder '; then
+if echo "$RS_OUT" | grep -qF "est. \$0.08 " && echo "$RS_OUT" | grep -q '^finder '; then
   check "role-spend: prices Haiku 5.5 on both rate cards" "$PASS"
 else
   check "role-spend: prices Haiku 5.5 on both rate cards (got: $(echo "$RS_OUT" | head -1))" "$FAIL"
@@ -871,15 +871,18 @@ rm -rf "$RS_HOME"
 
 RA_DIR=$(mktemp -d)
 touch "$RA_DIR/brief.md" "$RA_DIR/grade.py"
-RA_SPEC='{"out":"%s/out","agent":"builder-fast","arms":[{"id":"a","model":"haiku","effort":"low"}],"tasks":[{"id":"t","repo":"%s","base":"%s","brief":"brief.md","grade":"grade.py"}]}'
-printf "$RA_SPEC" "$RA_DIR" "$SCRIPT_DIR" "HEAD" > "$RA_DIR/good.json"
-printf "$RA_SPEC" "$RA_DIR" "$SCRIPT_DIR" "0000000deadbeef" > "$RA_DIR/bad.json"
+ra_spec() {
+  printf '{"out":"%s/out","agent":"builder-fast","arms":[{"id":"a","model":"haiku","effort":"low"}],"tasks":[{"id":"t","repo":"%s","base":"%s","brief":"brief.md","grade":"grade.py"}]}' \
+    "$RA_DIR" "$SCRIPT_DIR" "$1"
+}
+ra_spec HEAD > "$RA_DIR/good.json"
+ra_spec 0000000deadbeef > "$RA_DIR/bad.json"
 RA_GOOD=$(python3 "$SCRIPT_DIR/scripts/role-ab.py" check "$RA_DIR/good.json" 2>&1); RA_GOOD_RC=$?
 RA_BAD=$(python3 "$SCRIPT_DIR/scripts/role-ab.py" check "$RA_DIR/bad.json" 2>&1); RA_BAD_RC=$?
 if [ "$RA_GOOD_RC" -eq 0 ] && [ "$RA_BAD_RC" -ne 0 ] && echo "$RA_BAD" | grep -q 'is not a commit'; then
   check "role-ab check: accepts a valid spec, rejects a bad base commit" "$PASS"
 else
-  check "role-ab check: accepts a valid spec, rejects a bad base commit (good=$RA_GOOD_RC bad=$RA_BAD_RC)" "$FAIL"
+  check "role-ab check: accepts a valid spec, rejects a bad base commit (good=$RA_GOOD_RC: $RA_GOOD; bad=$RA_BAD_RC)" "$FAIL"
 fi
 rm -rf "$RA_DIR"
 
