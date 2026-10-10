@@ -77,6 +77,10 @@ remove_file ~/.claude/hooks/session-scan.sh
 remove_file ~/.claude/hooks/pre-compact.sh
 remove_file ~/.claude/hooks/stop-ledger-audit.sh
 remove_file ~/.claude/hooks/ledger-append.sh
+remove_file ~/.claude/hooks/skill-review-nudge.sh
+# The skill review's personal config (~/.claude/agentic-config.json) and
+# history (~/.claude/agentic-state/) stay, so a reinstall keeps them.
+remove_file ~/.claude/skills/.agentic-framework-skills
 
 # ---------------------------------------------------------------------------
 # 2b. Remove framework skill dirs
@@ -188,6 +192,7 @@ if "SessionStart" in hooks:
     before = len(hooks["SessionStart"])
     hooks["SessionStart"] = strip_entries(hooks["SessionStart"], "agentic: armed")
     hooks["SessionStart"] = strip_entries(hooks["SessionStart"], "session-scan.sh")
+    hooks["SessionStart"] = strip_entries(hooks["SessionStart"], "skill-review-nudge.sh")
     if len(hooks["SessionStart"]) != before:
         changed = True
         print("REMOVED_SS")

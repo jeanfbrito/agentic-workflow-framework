@@ -23,12 +23,46 @@ cases; file counts and ordinary engineering keywords do not force a pipeline.
 - **1 entry document** (`~/.claude/AGENTIC.md`) -- shared guidance imported via `CLAUDE.md`, with conditional references packaged inside the workflow skill.
 - **10 subagent definitions** in `~/.claude/agents/`: planner, auditor, reviewer, builder-smart, builder-fast, builder-trivial, finder, researcher, tester, watcher
 - **6 slash commands** in `~/.claude/commands/`: `/agentic`, `/init-agentic`, `/handoff`, `/blocker`, `/known-issue`, `/qq`
-- **4 hook scripts** in `~/.claude/hooks/`: `orchestrator.sh` (UserPromptSubmit reinforcement), `session-scan.sh` (SessionStart budgeted ledger digest), `pre-compact.sh` (PreCompact in-flight card snapshot), `stop-ledger-audit.sh` (Stop ledger hygiene audit)
+- **5 hook scripts** in `~/.claude/hooks/`: `orchestrator.sh` (UserPromptSubmit reinforcement), `session-scan.sh` (SessionStart budgeted ledger digest), `skill-review-nudge.sh` (SessionStart weekly skill review), `pre-compact.sh` (PreCompact in-flight card snapshot), `stop-ledger-audit.sh` (Stop ledger hygiene audit)
 - **1 utility script** (`~/.claude/hooks/ledger-append.sh`) -- lock-guarded `done.md`/`findings.md` appends and `decisions.tsv` rows. It is installed alongside the hooks but not wired to a hook event itself
-- **4 `settings.json` hook entries** -- SessionStart (budgeted ledger digest) + PreCompact (in-flight card snapshot) + Stop (ledger hygiene audit) + UserPromptSubmit (orchestrator reinforcement)
+- **5 `settings.json` hook entries** -- SessionStart (budgeted ledger digest) + SessionStart (weekly skill review) + PreCompact (in-flight card snapshot) + Stop (ledger hygiene audit) + UserPromptSubmit (orchestrator reinforcement)
 - **1 `CLAUDE.md` import line** -- `@AGENTIC.md` so the spec loads globally in every Claude Code session
-- **2 skills** in `~/.claude/skills/`: agentic-workflow and personal-engineering-rules. The `AGENTIC.md` Writing section uses the companion `asd-ste100` skill from [jeanfbrito/agent-skills](https://github.com/jeanfbrito/agent-skills) (`npx skills add jeanfbrito/agent-skills -s asd-ste100 -g`)
+- **3 skills** in `~/.claude/skills/`: agentic-workflow, personal-engineering-rules, and skill-review. The `AGENTIC.md` Writing section uses the companion `asd-ste100` skill from [jeanfbrito/agent-skills](https://github.com/jeanfbrito/agent-skills) (`npx skills add jeanfbrito/agent-skills -s asd-ste100 -g`)
 - **6 permission globs** in `~/.claude/settings.json`: Write/Edit for `.localdev/workflow/**`, `.localdev/workflow/handoffs/**`, and `docs/KNOWN_ISSUES.md`
+
+---
+
+## Wiki and weekly skill review
+
+The framework asks each user for a **wiki folder**: an Obsidian vault or any
+folder of Markdown notes. When Claude finds something new during work, it
+writes a page there that teaches the mechanism. Set the folder in one of these
+ways. Each one writes `~/.claude/agentic-config.json`, which a reinstall keeps:
+
+- `./install.sh` asks for it, or pass `./install.sh --wiki-dir=PATH`.
+- `python3 ~/.claude/skills/skill-review/scripts/skill_review.py config --wiki-dir PATH`
+- Plugin installs have no installer prompt. The session-start hook tells
+  Claude to ask, once per day, until you set the folder.
+
+Optional settings: `--proven-dir PATH` (your repo of promoted skills) and
+`--wiki-ignore "Daily,Logs"` (wiki subfolders that are logs, not pages).
+
+Once every 7 days, the session-start hook runs a local measurement in the
+background. It reads your Claude Code transcripts on this machine and writes a
+report page into `<wiki>/Skill Reviews/`. The report shows:
+
+- each skill, command, and plugin skill that actually ran (a real `Skill` call
+  or a typed `/name`, not a name in text), grouped by stage.
+- wiki pages written, and sessions that saved a lesson but wrote no page
+  (missed wikis).
+
+Run `/skill-review` to sort the skills into keep, merge, promote, or retire.
+Nothing changes until you approve. Retired skills move to
+`~/.claude/skills/.trash/`.
+
+Skill stages: **project** (`<repo>/.claude/skills/`) → **trial**
+(`~/.claude/skills/`, a plain folder) → **proven** (your skills repo, symlinked
+in), after use in 2 or more weeks.
 
 ---
 

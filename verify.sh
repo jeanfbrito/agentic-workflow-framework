@@ -42,6 +42,7 @@ FILES=(
   ~/.claude/hooks/pre-compact.sh
   ~/.claude/hooks/stop-ledger-audit.sh
   ~/.claude/hooks/ledger-append.sh
+  ~/.claude/hooks/skill-review-nudge.sh
 )
 for f in "$SCRIPT_DIR"/agents/*.md; do
   FILES+=( ~/.claude/agents/"$(basename "$f")" )
@@ -113,6 +114,12 @@ if grep -q 'session-scan.sh' ~/.claude/settings.json 2>/dev/null; then
   check "settings.json contains SessionStart hook ('session-scan.sh')" "$PASS"
 else
   check "settings.json contains SessionStart hook ('session-scan.sh')" "$FAIL"
+fi
+
+if grep -q 'skill-review-nudge.sh' ~/.claude/settings.json 2>/dev/null; then
+  check "settings.json contains SessionStart hook ('skill-review-nudge.sh')" "$PASS"
+else
+  check "settings.json contains SessionStart hook ('skill-review-nudge.sh')" "$FAIL"
 fi
 
 if grep -q 'pre-compact.sh' ~/.claude/settings.json 2>/dev/null; then
@@ -763,6 +770,58 @@ else
   done < "$ROLE_ROWS"
   rm -f "$ROLE_ROWS"
 fi
+
+# ---------------------------------------------------------------------------
+# Check 11 -- skill-review script on a synthetic Claude home: counts a real
+#            Skill call, ignores a name that is only mentioned, flags a
+#            session that saved a lesson with no wiki page, and runs the
+#            nudge states (no wiki set, report ready, reviewed).
+# ---------------------------------------------------------------------------
+
+SR="$SCRIPT_DIR/skills/skill-review/scripts/skill_review.py"
+SR_HOME=$(mktemp -d)
+mkdir -p "$SR_HOME/projects/p" "$SR_HOME/skills/used-skill" "$SR_HOME/skills/idle-skill" "$SR_HOME/wiki"
+printf -- '---\nname: used-skill\ndescription: x\n---\n' > "$SR_HOME/skills/used-skill/SKILL.md"
+printf -- '---\nname: idle-skill\ndescription: x\n---\n' > "$SR_HOME/skills/idle-skill/SKILL.md"
+SR_TS=$(python3 -c "from datetime import datetime,timezone;print(datetime.now(timezone.utc).isoformat())")
+cat > "$SR_HOME/projects/p/s1.jsonl" <<JSONL
+{"type":"user","timestamp":"$SR_TS","cwd":"/tmp","message":{"role":"user","content":"mention idle-skill only"}}
+{"type":"assistant","timestamp":"$SR_TS","message":{"role":"assistant","content":[{"type":"tool_use","name":"Skill","input":{"skill":"used-skill"}},{"type":"tool_use","name":"Write","input":{"file_path":"$SR_HOME/projects/p/memory/new-finding.md"}}]}}
+JSONL
+
+SR_NUDGE_A=$(CLAUDE_CONFIG_DIR="$SR_HOME" python3 "$SR" nudge 2>/dev/null)
+if echo "$SR_NUDGE_A" | grep -q 'no wiki folder is set'; then
+  check "skill-review nudge: asks for a wiki folder when none is set" "$PASS"
+else
+  check "skill-review nudge: asks for a wiki folder when none is set" "$FAIL"
+fi
+
+CLAUDE_CONFIG_DIR="$SR_HOME" python3 "$SR" config --wiki-dir "$SR_HOME/wiki" >/dev/null 2>&1
+CLAUDE_CONFIG_DIR="$SR_HOME" python3 "$SR" measure >/dev/null 2>&1
+SR_RESULT=$(python3 - "$SR_HOME" <<'PYEOF'
+import glob, json, sys
+r = json.load(open(sorted(glob.glob(sys.argv[1] + "/agentic-state/skill-review/report-*.json"))[-1]))
+uses = {s["key"]: s["uses_long"] for s in r["skills"]}
+ok = uses.get("used-skill") == 1 and uses.get("idle-skill") == 0 and r["wiki"]["missed_count"] == 1
+print("ok" if ok else f"bad {uses} missed={r['wiki']['missed_count']}")
+PYEOF
+)
+if [ "$SR_RESULT" = "ok" ] && ls "$SR_HOME/wiki/Skill Reviews/"*"Skill Review.md" >/dev/null 2>&1; then
+  check "skill-review measure: counts invoked only, flags missed wiki, writes wiki report" "$PASS"
+else
+  check "skill-review measure: counts invoked only, flags missed wiki, writes wiki report ($SR_RESULT)" "$FAIL"
+fi
+
+SR_NUDGE_B=$(CLAUDE_CONFIG_DIR="$SR_HOME" python3 "$SR" nudge 2>/dev/null)
+CLAUDE_CONFIG_DIR="$SR_HOME" python3 "$SR" reviewed >/dev/null 2>&1
+rm -f "$SR_HOME/agentic-state/skill-review/nudged-review"
+SR_NUDGE_C=$(CLAUDE_CONFIG_DIR="$SR_HOME" python3 "$SR" nudge 2>/dev/null)
+if echo "$SR_NUDGE_B" | grep -q 'report is ready' && [ -z "$SR_NUDGE_C" ]; then
+  check "skill-review nudge: points to a new report, silent after review" "$PASS"
+else
+  check "skill-review nudge: points to a new report, silent after review" "$FAIL"
+fi
+rm -rf "$SR_HOME"
 
 # ---------------------------------------------------------------------------
 # Result
