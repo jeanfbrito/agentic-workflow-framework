@@ -412,7 +412,7 @@ fi
 TMPDIR_STALE=$(mktemp -d)
 mkdir -p "$TMPDIR_STALE/.localdev/workflow/.done.md.lock"
 touch -t 202001010000 "$TMPDIR_STALE/.localdev/workflow/.done.md.lock"
-(cd "$TMPDIR_STALE" && printf '## stale-entry\n' | bash "$SCRIPT_DIR/scripts/ledger-append.sh" done 2>/dev/null)
+(cd "$TMPDIR_STALE" && printf '## stale-entry\n' | bash "$SCRIPT_DIR/scripts/ledger-append.sh" "done" 2>/dev/null)
 if grep -q '^## stale-entry$' "$TMPDIR_STALE/.localdev/workflow/done.md" 2>/dev/null \
    && ! grep -q 'lock-timeout' "$TMPDIR_STALE/.localdev/workflow/done.md" \
    && [ ! -d "$TMPDIR_STALE/.localdev/workflow/.done.md.lock" ]; then
