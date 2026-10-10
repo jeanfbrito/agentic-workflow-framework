@@ -406,6 +406,22 @@ else
   check "ledger-append.sh concurrency: lock dir removed after run" "$PASS"
 fi
 
+# A lock dir left by a crashed writer (2020 mtime) must be swept at once on
+# both GNU and BSD stat. On Linux, `stat -f` is filesystem status and once
+# broke the age arithmetic, so the writer died and the entry was lost.
+TMPDIR_STALE=$(mktemp -d)
+mkdir -p "$TMPDIR_STALE/.localdev/workflow/.done.md.lock"
+touch -t 202001010000 "$TMPDIR_STALE/.localdev/workflow/.done.md.lock"
+(cd "$TMPDIR_STALE" && printf '## stale-entry\n' | bash "$SCRIPT_DIR/scripts/ledger-append.sh" "done" 2>/dev/null)
+if grep -q '^## stale-entry$' "$TMPDIR_STALE/.localdev/workflow/done.md" 2>/dev/null \
+   && ! grep -q 'lock-timeout' "$TMPDIR_STALE/.localdev/workflow/done.md" \
+   && [ ! -d "$TMPDIR_STALE/.localdev/workflow/.done.md.lock" ]; then
+  check "ledger-append.sh: stale lock swept at once, entry appended without timeout" "$PASS"
+else
+  check "ledger-append.sh: stale lock swept at once, entry appended without timeout" "$FAIL"
+fi
+rm -rf "$TMPDIR_STALE"
+
 (cd "$TMPDIR_LA" && echo hi | bash "$SCRIPT_DIR/scripts/ledger-append.sh" bogus >/dev/null 2>/tmp/ledger_err_$$.txt)
 LA_BOGUS_EXIT=$?
 if [ "$LA_BOGUS_EXIT" -ne 0 ] && [ -s "/tmp/ledger_err_$$.txt" ]; then
