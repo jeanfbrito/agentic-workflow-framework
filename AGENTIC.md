@@ -151,6 +151,22 @@ each hard finding, or say why it stays. If the skill is missing, install it
 from `jeanfbrito/agent-skills`. Keep every hedge, because confidence is content.
 Voice-led writing, such as blog posts, is out of scope.
 
+## Wiki and Skills
+
+When you find something new, write a wiki page that teaches it. Examples: a
+behavior that differs from its docs, a root cause that differs from the first
+guess, a mechanism the user did not know. Explain how it works and why
+it matters, then give the evidence. Put the page in the user's wiki folder
+(`wiki_dir` in `~/.claude/agentic-config.json`). If the folder is not set, ask
+the user once and save it with the `skill-review` skill. Follow the wiki's own
+rules file when it has one.
+
+Save a repeatable procedure as a skill in the lowest stage that fits: the
+project's `.claude/skills/` for one repo, or `~/.claude/skills/` as a trial for
+general use. Tests follow the project's own guidance. The weekly
+`/skill-review` measures skill use and missed wikis, and it proposes which
+skills to keep, merge, promote, or retire. The user approves each change.
+
 ## Tools
 
 - Use GitNexus for indexed structural and impact questions. A missing or stale

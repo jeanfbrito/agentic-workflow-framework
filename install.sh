@@ -18,16 +18,20 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 YES=0
 LINK=0
+WIKI_DIR=""
 for arg in "$@"; do
   case "$arg" in
     --yes|-y) YES=1 ;;
     --link)   LINK=1 ;;
+    --wiki-dir=*) WIKI_DIR="${arg#--wiki-dir=}" ;;
     --help|-h)
-      echo "Usage: ./install.sh [--yes|-y] [--link]"
+      echo "Usage: ./install.sh [--yes|-y] [--link] [--wiki-dir=PATH]"
       echo ""
-      echo "  --yes, -y   Skip the confirmation prompt."
-      echo "  --link      Symlink framework files instead of copying (dev mode)."
-      echo "              Use when iterating on the repo without reinstalling."
+      echo "  --yes, -y         Skip the confirmation prompt."
+      echo "  --link            Symlink framework files instead of copying (dev mode)."
+      echo "                    Use when iterating on the repo without reinstalling."
+      echo "  --wiki-dir=PATH   Folder for wiki pages (an Obsidian vault or any folder"
+      echo "                    of Markdown notes). Saved in ~/.claude/agentic-config.json."
       exit 0
       ;;
   esac
@@ -93,6 +97,7 @@ install_file "$SCRIPT_DIR/hooks/session-scan.sh"         ~/.claude/hooks/session
 install_file "$SCRIPT_DIR/hooks/pre-compact.sh"          ~/.claude/hooks/pre-compact.sh
 install_file "$SCRIPT_DIR/hooks/stop-ledger-audit.sh"    ~/.claude/hooks/stop-ledger-audit.sh
 install_file "$SCRIPT_DIR/scripts/ledger-append.sh"      ~/.claude/hooks/ledger-append.sh
+install_file "$SCRIPT_DIR/hooks/skill-review-nudge.sh"   ~/.claude/hooks/skill-review-nudge.sh
 
 # ---------------------------------------------------------------------------
 # 3b. Skills -- dynamic install (loop over skills/*/)
@@ -114,6 +119,13 @@ for skill_src in "$SCRIPT_DIR/skills"/*/; do
   INSTALLED_SKILLS+=("$skill_name")
 done
 
+# The weekly skill review reads this manifest to tell framework skills and
+# commands from the user's own.
+{
+  for s in "${INSTALLED_SKILLS[@]}"; do echo "$s"; done
+  for cmd_src in "$SCRIPT_DIR/commands"/*.md; do basename "$cmd_src" .md; done
+} > ~/.claude/skills/.agentic-framework-skills
+
 # ---------------------------------------------------------------------------
 # 4. Executable bit
 # ---------------------------------------------------------------------------
@@ -123,6 +135,7 @@ chmod +x ~/.claude/hooks/session-scan.sh
 chmod +x ~/.claude/hooks/pre-compact.sh
 chmod +x ~/.claude/hooks/stop-ledger-audit.sh
 chmod +x ~/.claude/hooks/ledger-append.sh
+chmod +x ~/.claude/hooks/skill-review-nudge.sh
 
 # ---------------------------------------------------------------------------
 # 5. CLAUDE.md -- backup + ensure @AGENTIC.md import line
@@ -196,6 +209,15 @@ session_start.append({
 })
 hooks["SessionStart"] = session_start
 print("SS_REPLACED" if before_ss > len(session_start) - 1 else "SS_ADDED")
+
+# --- SessionStart: weekly skill review ---
+# Marker 'skill-review-nudge.sh' identifies this entry.
+session_start = strip_framework(hooks["SessionStart"], 'skill-review-nudge.sh')
+session_start.append({
+    "matcher": "startup|resume",
+    "hooks": [{"type": "command", "command": "bash ~/.claude/hooks/skill-review-nudge.sh", "timeout": 10}]
+})
+hooks["SessionStart"] = session_start
 
 # --- PreCompact ---
 pre_compact = hooks.setdefault("PreCompact", [])
@@ -276,6 +298,26 @@ with open(path, 'w') as fh:
 PYEOF
 
 # ---------------------------------------------------------------------------
+# 6b. Wiki folder -- personal config for the weekly skill review.
+#     Asked once. A reinstall keeps the saved value.
+# ---------------------------------------------------------------------------
+
+SKILL_REVIEW=~/.claude/skills/skill-review/scripts/skill_review.py
+WIKI_ACTION="kept"
+if [ -z "$WIKI_DIR" ] && [ "$YES" -eq 0 ] \
+   && python3 "$SKILL_REVIEW" config | grep -q '"wiki_dir": null'; then
+  printf 'Wiki folder for the notes Claude writes to teach you (blank to skip): '
+  read -r WIKI_DIR
+fi
+if [ -n "$WIKI_DIR" ]; then
+  if python3 "$SKILL_REVIEW" config --wiki-dir "$WIKI_DIR" >/dev/null; then
+    WIKI_ACTION="set to $WIKI_DIR"
+  else
+    WIKI_ACTION="NOT set: $WIKI_DIR is not a directory"
+  fi
+fi
+
+# ---------------------------------------------------------------------------
 # 7. Verification
 # ---------------------------------------------------------------------------
 
@@ -296,7 +338,7 @@ echo "--- Summary ---"
 echo ""
 
 SKILL_COUNT="${#INSTALLED_SKILLS[@]}"
-CORE_COUNT=$((6 + AGENT_COUNT + COMMAND_COUNT))  # AGENTIC.md + 4 hooks + ledger-append.sh + agents + commands
+CORE_COUNT=$((7 + AGENT_COUNT + COMMAND_COUNT))  # AGENTIC.md + 5 hooks + ledger-append.sh + agents + commands
 if [ "$LINK" -eq 1 ]; then
   echo "Framework files: linked (dev mode) -- $CORE_COUNT core symlinks + $SKILL_COUNT skill(s) to $SCRIPT_DIR"
 else
@@ -321,6 +363,9 @@ echo ""
 echo "settings.json hook entries:"
 if grep -q 'session-scan.sh' "$SETTINGS_JSON" 2>/dev/null; then
   echo "  hooks.SessionStart        -- budgeted ledger digest (present)"
+fi
+if grep -q 'skill-review-nudge.sh' "$SETTINGS_JSON" 2>/dev/null; then
+  echo "  hooks.SessionStart        -- weekly skill review nudge (present)"
 fi
 if grep -q 'pre-compact.sh' "$SETTINGS_JSON" 2>/dev/null; then
   echo "  hooks.PreCompact          -- in-flight card snapshot (present)"
@@ -351,6 +396,11 @@ if [ -f "$SETTINGS_BACKUP" ]; then
 fi
 
 echo ""
+echo "Wiki folder: $WIKI_ACTION"
+python3 "$SKILL_REVIEW" config | grep '"wiki_dir"' | sed 's/^/ /'
+echo "  Change it with: python3 $SKILL_REVIEW config --wiki-dir <path>"
+
+echo ""
 echo "How to use:"
 echo "  /agentic <task>         Front door for any non-trivial task. Tier is inferred;"
 echo "                          use --tier=trivial|medium|full to override."
@@ -358,6 +408,7 @@ echo "  /init-agentic           Scaffold .localdev/workflow/ in the current proj
 echo "  /handoff <name>         Write a cross-session handoff from current context."
 echo "  /blocker <summary>      Log an unresolved blocker and halt."
 echo "  /known-issue <summary>  Append a platform constraint to docs/KNOWN_ISSUES.md."
+echo "  /skill-review           Weekly review: which skills to keep, merge, promote or retire."
 echo ""
 echo "  Handle scoped work directly; use planning and authorized delegation when useful."
 echo "  Continue through the requested outcome and focused verification."
