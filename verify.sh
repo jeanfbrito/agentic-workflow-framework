@@ -840,6 +840,50 @@ fi
 rm -rf "$SR_HOME"
 
 # ---------------------------------------------------------------------------
+# Check -- role-spend prices Haiku 5.5 on its two rate cards. Two turns:
+#   50K-token prompt at $0.10/MTok = $0.005, 150K-token prompt at $0.50/MTok
+#   = $0.075. Total $0.08. One card for both turns would print $0.02.
+# ---------------------------------------------------------------------------
+
+RS_HOME=$(mktemp -d)
+RS_DIR="$RS_HOME/projects/p/s/subagents"
+mkdir -p "$RS_DIR"
+echo '{"agentType":"finder"}' > "$RS_DIR/agent-x.meta.json"
+python3 - "$RS_DIR/agent-x.jsonl" <<'PYEOF'
+import json, sys
+with open(sys.argv[1], 'w') as f:
+    for i, n in enumerate((50_000, 150_000)):
+        f.write(json.dumps({'type': 'assistant', 'message': {'id': f'm{i}', 'model': 'claude-haiku-5-5',
+                            'usage': {'input_tokens': n, 'output_tokens': 0}}}) + '\n')
+PYEOF
+RS_OUT=$(CLAUDE_CONFIG_DIR="$RS_HOME" python3 "$SCRIPT_DIR/scripts/role-spend.py" --days 1 2>&1)
+if echo "$RS_OUT" | grep -q 'est\. \$0\.08 ' && echo "$RS_OUT" | grep -q '^finder '; then
+  check "role-spend: prices Haiku 5.5 on both rate cards" "$PASS"
+else
+  check "role-spend: prices Haiku 5.5 on both rate cards (got: $(echo "$RS_OUT" | head -1))" "$FAIL"
+fi
+rm -rf "$RS_HOME"
+
+# ---------------------------------------------------------------------------
+# Check -- role-ab check accepts a valid spec and rejects a bad base commit
+#   before any arm spends money.
+# ---------------------------------------------------------------------------
+
+RA_DIR=$(mktemp -d)
+touch "$RA_DIR/brief.md" "$RA_DIR/grade.py"
+RA_SPEC='{"out":"%s/out","agent":"builder-fast","arms":[{"id":"a","model":"haiku","effort":"low"}],"tasks":[{"id":"t","repo":"%s","base":"%s","brief":"brief.md","grade":"grade.py"}]}'
+printf "$RA_SPEC" "$RA_DIR" "$SCRIPT_DIR" "HEAD" > "$RA_DIR/good.json"
+printf "$RA_SPEC" "$RA_DIR" "$SCRIPT_DIR" "0000000deadbeef" > "$RA_DIR/bad.json"
+RA_GOOD=$(python3 "$SCRIPT_DIR/scripts/role-ab.py" check "$RA_DIR/good.json" 2>&1); RA_GOOD_RC=$?
+RA_BAD=$(python3 "$SCRIPT_DIR/scripts/role-ab.py" check "$RA_DIR/bad.json" 2>&1); RA_BAD_RC=$?
+if [ "$RA_GOOD_RC" -eq 0 ] && [ "$RA_BAD_RC" -ne 0 ] && echo "$RA_BAD" | grep -q 'is not a commit'; then
+  check "role-ab check: accepts a valid spec, rejects a bad base commit" "$PASS"
+else
+  check "role-ab check: accepts a valid spec, rejects a bad base commit (good=$RA_GOOD_RC bad=$RA_BAD_RC)" "$FAIL"
+fi
+rm -rf "$RA_DIR"
+
+# ---------------------------------------------------------------------------
 # Result
 # ---------------------------------------------------------------------------
 
