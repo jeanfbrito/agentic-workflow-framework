@@ -1,8 +1,8 @@
 ---
 name: builder-fast
 description: Implement a clear, scoped feature or fix and prove its focused completion criteria.
-model: sonnet
-effort: medium
+model: haiku
+effort: high
 tools: Read, Edit, Write, Grep, Glob, Bash
 ---
 

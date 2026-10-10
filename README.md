@@ -127,10 +127,38 @@ Removes the framework files, installed skills, and permission globs. By default 
 These aliases configure delegated Claude Code roles. They do not change the
 main conversation's selected model or require delegation.
 
-- **Inherit** (rides the session model) -- Planner and Auditor: the general — plans and diagnoses, doesn't fight; deep deliberation at whatever capability the session is already running.
-- **Opus** -- builder-smart: the general picking up a weapon — exception only, when a sonnet attempt failed or the code demands strategy-grade reasoning.
-- **Sonnet** (smart model) -- Reviewer and builder-fast: the soldiers — primary implementation and quality-gate judgment.
-- **Haiku** (fast model) -- builder-trivial, Finder, Researcher, Tester, and Watcher: the scouts — cheap, fast, run many in parallel.
+- **Inherit** (rides the session model) -- Planner: the general. It plans and does not fight, on the model the session already runs.
+- **Fable** (strongest model) -- Auditor: the outside expert. The orchestrator calls it only after two failed approaches, so a stronger model diagnoses what the lower tier missed.
+- **Opus** -- Reviewer and builder-smart: the officers. The Reviewer is the quality gate on risky diffs. builder-smart implements by exception: after a failed builder-fast attempt, for strategy-grade reasoning, or for prose that goes to a public repo.
+- **Haiku** (fast model, effort high for builder-fast) -- builder-fast, builder-trivial, Finder, Researcher, Tester, and Watcher: the soldiers and scouts. They are cheap, and many run in parallel.
+- **Sonnet** -- no role. In the 2026-10 A/B below, Haiku and Opus did better than Sonnet in this framework.
+
+Why these tiers (prices as of 2026-10): subagent spend is mostly cached input,
+and Opus and Sonnet charge the same for a cache read. On real subagent loops,
+Opus costs about 1.35x to 1.7x Sonnet, not the 2x of the list price. So the
+low-volume judgment roles (Reviewer, Auditor) move up a tier for little money.
+Haiku costs 20x less than Sonnet. Above a 100K-token prompt, the Haiku price
+goes up 5x, so the scouts keep their tool budgets and short prompts.
+
+Why builder-fast runs on Haiku (A/B, 2026-10-10): 3 real builder briefs ran
+again on 7 model and effort arms. A blind judge ranked the results. Opus
+medium ranked first (mean rank 2.0) at $2.21 per 3 tasks. Haiku high ranked
+second (3.0) at $0.52. Sonnet medium, the old builder-fast, ranked last (5.17)
+at $0.97, and Sonnet high did not do better. Haiku needs 3 to 4 times more
+turns, so one Haiku builder is slower. Builders that run in parallel hide that
+cost. In one observed job, Opus with Haiku workers finished in about a fifth of
+the time of Opus alone, at about the same cost. Haiku was weaker on prose for
+a public repo, so that work goes to builder-smart.
+
+When a new model generation arrives, measure before you change a role:
+
+- `python3 scripts/role-spend.py --whatif` reads your local subagent
+  transcripts. It shows the model that each role ran on, where the spend is,
+  and what each role would cost on each current model.
+- `python3 scripts/role-ab.py check|run|judge|report spec.json` replays real
+  briefs for one role on several models. Each arm runs in its own git
+  worktree. A grader that you write runs the checks, and a blind judge ranks
+  the arms. The docstring describes the spec format.
 
 ---
 

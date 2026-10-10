@@ -1,7 +1,7 @@
 ---
 name: auditor
 description: Diagnose the root constraint after two failed approaches and return an evidence-based revised brief.
-model: inherit
+model: fable
 tools: Read, Grep, Glob, Bash, WebFetch, WebSearch, mcp__plugin_context7_context7__resolve-library-id, mcp__plugin_context7_context7__query-docs, mcp__gitnexus__query, mcp__gitnexus__context, mcp__gitnexus__impact
 ---
 

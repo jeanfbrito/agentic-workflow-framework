@@ -26,16 +26,21 @@ before task-specific items. A step you skip stays in the list as `skip: <reason>
 to delegate or perform external actions. Infer the tier when omitted. Existing
 "do it yourself" and "off orchestrator" requests continue to disable delegation.
 
-Cost follows tier. Each role already carries its model. `finder`, `watcher`,
-`tester`, and `researcher` run on the cheapest tier. `reviewer` and
-`builder-fast` run mid-tier. `builder-smart` is only for reasoning-heavy work.
-Delegate through the role rather than a hand-configured agent call, so cost is
-set once. Harness effort toggles (ultracode, effort levels) raise reasoning
-depth for the current task. They do not change the tier and do not authorize a
-multi-agent `Workflow` fan-out. A fan-out needs an explicit request in the
-user's words. Reviewing a small diff is targeted searches plus at most one
-`reviewer`, never a finder per risk dimension. Reach for a fan-out only when
-the question cannot be held in one context.
+Cost follows tier. Each role already carries its model. `builder-fast`,
+`builder-trivial`, `finder`, `watcher`, `tester`, and `researcher` run on the
+cheapest tier. `reviewer` runs on the top tier, because a review must find what
+the builder missed and reviews are few. `builder-smart` takes reasoning-heavy
+work, a failed `builder-fast` attempt, and prose for a public repo. `auditor`
+runs on the strongest model, because it diagnoses after a lower tier failed
+twice. Delegate through the role rather than a hand-configured agent call, so
+cost is set once. Dispatch independent subagent work at the same time by
+default. The user does not need to ask. Builders run together only when their
+write scopes do not overlap. Effort levels raise reasoning depth for the
+current task. They do not change the tier. A multi-agent `Workflow` fan-out
+needs an explicit request in the user's words, or ultracode on for the session.
+Reviewing a small diff is targeted searches plus at most one `reviewer`, never
+a finder per risk dimension. Without ultracode, reach for a `Workflow` fan-out
+only when the question cannot be held in one context.
 
 ## Context and Decisions
 

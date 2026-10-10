@@ -12,8 +12,8 @@ conversation's selected model. Read a role prompt only when using that role.
 | Role | Useful for |
 | --- | --- |
 | planner | Material architectural ambiguity or risky design decisions; returns a brief, without coding or delegation. |
-| builder-fast | Clear, scoped implementation and its focused proof. |
-| builder-smart | A failed ordinary implementation or reasoning-intensive algorithms and concurrency. |
+| builder-fast | Clear, scoped implementation and its focused proof. Independent briefs run in parallel. |
+| builder-smart | A failed builder-fast attempt, reasoning-intensive algorithms and concurrency, or prose for a public repo. |
 | builder-trivial | A fully specified repetitive transformation. |
 | finder | Bounded, read-only code location and call-chain questions. |
 | researcher | Primary-source API, library, CLI, and platform research. |
@@ -44,10 +44,18 @@ The main thread owns task-state decisions; workers return proposed ledger entrie
 
 ## Dispatch and Continuation
 
-Run independent work concurrently only when useful local work or another agent
-can proceed beside it. When the user says "fan out subagents to work in parallel" or "fanout subagents", dispatch independent work concurrently under these rules. If the runtime supports foreground dispatch, prefer it
-for a sole critical-path agent. Use the active runtime's actual tool schema;
-Claude-specific flags and message behavior are not portable to other runtimes.
+Dispatch independent subagent work at the same time by default. The user does
+not need to ask. Read-only scouts (finder, researcher) can always run together.
+Testers and watchers run together when their commands do not share ports,
+build output, or other state. Builders run together when their write scopes do
+not overlap. A split job finishes sooner on cheap workers, although each worker
+needs more turns than a stronger model would. Use an isolated worktree for each
+writer when the runtime supports it and the project can run its checks there.
+Otherwise keep the write scopes separate on the shared tree. Keep a small task
+local, and keep a sequential critical path on one agent. If the runtime
+supports foreground dispatch, prefer it for a sole critical-path agent. Use the
+active runtime's actual tool schema. Claude-specific flags and
+message behavior are not portable to other runtimes.
 
 Completion is notification-driven. Wait using the available runtime tool when
 no independent work remains; avoid repeated polling. Reuse the same agent for
@@ -77,8 +85,9 @@ those from the main thread as a backgrounded command that exits on completion â€
 notification arrive.
 
 For larger fan-outs, make dependencies and result formats explicit. Use a
-Workflow tool only if it exists and its use is authorized; no fan-out threshold
-constitutes an automatic tool opt-in.
+Workflow tool only if it exists and its use is authorized: the user asked for
+it, or ultracode is on for the session. No fan-out threshold is an automatic
+opt-in.
 
 Return changed paths, checks and outcomes, unresolved issues, and evidence gaps.
 The main thread integrates the result, completes remaining requested work, and

@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: Review a risky diff for concrete regressions and scope issues, using existing verification evidence.
-model: sonnet
+model: opus
 effort: medium
 tools: Read, Edit, Grep, Glob, Bash
 ---
