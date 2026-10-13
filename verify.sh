@@ -713,18 +713,37 @@ if not os.path.isfile(path):
 data = json.load(open(path))
 allow = data.get("permissions", {}).get("allow", [])
 REQUIRED = [
-    "Write(.localdev/workflow/**)",
     "Edit(.localdev/workflow/**)",
-    "Write(.localdev/workflow/handoffs/**)",
     "Edit(.localdev/workflow/handoffs/**)",
+    "Edit(docs/KNOWN_ISSUES.md)",
 ]
 missing = [g for g in REQUIRED if g not in allow]
 sys.exit(1 if missing else 0)
 PYEOF
 then
-  check "settings.json permissions.allow contains the 4 .localdev/workflow globs" "$PASS"
+  check "settings.json permissions.allow contains the 3 framework Edit globs" "$PASS"
 else
-  check "settings.json permissions.allow contains the 4 .localdev/workflow globs" "$FAIL"
+  check "settings.json permissions.allow contains the 3 framework Edit globs" "$FAIL"
+fi
+
+# Claude Code matches file permissions only against Edit(path) rules and
+# warns at startup about every Write(path) rule, so none may remain.
+if python3 - ~/.claude/settings.json <<'PYEOF'
+import json, sys, os
+path = sys.argv[1]
+if not os.path.isfile(path):
+    sys.exit(0)
+data = json.load(open(path))
+allow = data.get("permissions", {}).get("allow", [])
+dead = [g for g in allow if g.startswith("Write(") and g != "Write"]
+if dead:
+    print("dead Write(path) rules (use Edit(path)): " + ", ".join(dead), file=sys.stderr)
+sys.exit(1 if dead else 0)
+PYEOF
+then
+  check "settings.json permissions.allow contains NO Write(path) rules" "$PASS"
+else
+  check "settings.json permissions.allow contains NO Write(path) rules" "$FAIL"
 fi
 
 if python3 - ~/.claude/settings.json <<'PYEOF'

@@ -226,8 +226,8 @@ if "UserPromptSubmit" in hooks:
     else:
         print("UP_NOT_FOUND")
 
-# Strip framework permission globs (both current .localdev/workflow and
-# stale .claude/mytasks variants) from permissions.allow
+# Strip framework permission globs (current Edit globs, the Write globs older
+# installs granted, and stale .claude/mytasks variants) from permissions.allow
 FRAMEWORK_GLOBS = {
     "Write(.localdev/workflow/**)",
     "Edit(.localdev/workflow/**)",

@@ -266,15 +266,21 @@ allow = perms.setdefault("allow", [])
 # MIGRATE: drop stale .claude/mytasks globs (old path, replaced by .localdev/workflow)
 before_migrate = len(allow)
 allow = [g for g in allow if '.claude/mytasks' not in g]
+# MIGRATE: drop the Write(path) globs older installs granted. Claude Code
+# matches file permissions only against Edit(path) rules, which cover every
+# file-editing tool, and warns at startup about each Write(path) rule.
+LEGACY_WRITE_GLOBS = {
+    "Write(.localdev/workflow/**)",
+    "Write(.localdev/workflow/handoffs/**)",
+    "Write(docs/KNOWN_ISSUES.md)",
+}
+allow = [g for g in allow if g not in LEGACY_WRITE_GLOBS]
 migrated = before_migrate - len(allow)
 
-# GRANT: the 6 framework permission globs (add if missing, no duplicates)
+# GRANT: the 3 framework permission globs (add if missing, no duplicates)
 FRAMEWORK_GLOBS = [
-    "Write(.localdev/workflow/**)",
     "Edit(.localdev/workflow/**)",
-    "Write(.localdev/workflow/handoffs/**)",
     "Edit(.localdev/workflow/handoffs/**)",
-    "Write(docs/KNOWN_ISSUES.md)",
     "Edit(docs/KNOWN_ISSUES.md)",
 ]
 added = 0
