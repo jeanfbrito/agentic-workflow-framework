@@ -35,6 +35,27 @@ checks while iterating, one full-suite run at the end. Either returns partial
 findings and the unresolved gap when its budget is exhausted. Avoid dumping
 unrelated conversation history.
 
+A brief carries these fields. Copy the block and fill it.
+
+```
+Outcome: <one sentence; the observable result>
+Base: <repo, branch or commit, worktree yes/no>
+Read first: <the project's agent guide, the card, the paths>
+Setup: <the project's worktree or environment steps, in order>
+Owns: <the files or folders this agent may write; nothing else>
+Constraints: <locks, shared folders, commands that must not run, defaults that stay>
+Production command: <each check with the exact flags the real run uses>
+Verification budget: <targeted checks while iterating; one full check at the end>
+Time budget: <wall-clock; at the budget, stop and report partial work>
+Report: changed paths; each check as "command -> result line" (the exact
+command beside each PASS); unresolved issues; evidence gaps; proposed ledger
+entries. No commits outside the owned paths; no attribution lines.
+```
+
+A check run with a changed flag, a smaller map or a default configuration is a
+different check. The worker reports it as such, and the main thread does not
+take it as the production result.
+
 Workers share responsibility with other contributors. Preserve their edits.
 Serialize overlapping write scopes, or use real isolated worktrees if the
 runtime supports them. On a shared tree, do not stash, reset, checkout, or run
@@ -62,6 +83,13 @@ no independent work remains; avoid repeated polling. Reuse the same agent for
 follow-ups and failure diagnosis when its context remains useful. Confirm how
 that runtime resumes an idle agent instead of assuming a message starts a turn.
 
+Each brief carries a time budget. A worker that reaches it stops. It lands what
+passes and reports the rest as partial. When the budget passes without a report,
+the main thread sends a stop order. The order names what to keep. It asks for
+the report within minutes. Merge the work that passed its checks. Carry
+the rest as a card. A worker that runs for hours without a report is a stall,
+not progress.
+
 For a stall, check the task's actual state, including pending permission requests,
 then make one bounded probe or narrow the brief. A past permission incident is
 not proof of the current cause. Never install blanket permissions to bypass a
@@ -77,6 +105,11 @@ The main thread owns long-lived servers in a process session that survives
 agent completion. A watcher handles finite jobs or logfile digests; it does not
 own server lifetime or poll other agents. Preserve a requested running server.
 
+Do not merge into a tree that a running process reads. Do not edit its scripts
+either. A runtime that loads scripts lazily mixes the versions, and the run
+fails with errors that the settled tree does not have. Wait for the run
+to end, or run it in a worktree.
+
 Match the waiting mechanism to the length of the wait. A watcher suits a job that
 finishes within the attention it can hold; on a multi-minute remote wait such as
 CI it tends to return early while reporting that it is still monitoring. Run
@@ -90,5 +123,8 @@ it, or ultracode is on for the session. No fan-out threshold is an automatic
 opt-in.
 
 Return changed paths, checks and outcomes, unresolved issues, and evidence gaps.
-The main thread integrates the result, completes remaining requested work, and
-closes the task once its completion criteria are met.
+Quote the exact command beside each PASS line. A PASS from a simpler
+configuration (a default flag, a smaller map, a stub) is not the result. The
+main thread reruns each check with the production flags before it merges. Then
+it integrates the result, completes the remaining requested work, and closes
+the task once its completion criteria are met.

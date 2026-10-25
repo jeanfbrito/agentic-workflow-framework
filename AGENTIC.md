@@ -109,8 +109,9 @@ claim in a report as measured, inferred, or a guess in the same sentence.
 Settle whether something shipped or is ready from the primary artifact: the
 release or tag object, the lines a job emitted, or API state. A prerelease and
 the stable after it are different answers. The lines a job emitted are not the
-script text it echoed into the log. If a required check cannot run, report `UNVERIFIED`, the reason,
-and what was checked. Complete unaffected work before handing back.
+script text it echoed into the log. A delegated PASS is evidence after the main thread reruns the check with the
+production flags on the merged tree, not before. If a required check cannot
+run, report `UNVERIFIED`, the reason, and what was checked. Complete unaffected work before handing back.
 
 When verification requires expensive setup (provisioning a machine, building a
 desktop app, configuring a new environment), audit the change for likely
