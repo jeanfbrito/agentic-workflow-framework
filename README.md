@@ -154,7 +154,8 @@ When a new model generation arrives, measure before you change a role:
 
 - `python3 scripts/role-spend.py --whatif` reads your local subagent
   transcripts. It shows the model that each role ran on, where the spend is,
-  and what each role would cost on each current model.
+  and what each role would cost on each current model. It counts the main
+  sessions too, and `--top 10` lists the 10 most expensive single runs.
 - `python3 scripts/role-ab.py check|run|judge|report spec.json` replays real
   briefs for one role on several models. Each arm runs in its own git
   worktree. A grader that you write runs the checks, and a blind judge ranks

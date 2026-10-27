@@ -3,6 +3,7 @@ name: builder-smart
 description: Implement reasoning-heavy or concurrency changes, fix a failed builder-fast attempt, or write prose for a public repo.
 model: opus
 effort: high
+maxTurns: 250
 tools: Read, Edit, Write, Grep, Glob, Bash, WebFetch
 ---
 

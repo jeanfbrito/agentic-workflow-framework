@@ -33,7 +33,11 @@ the builder missed and reviews are few. `builder-smart` takes reasoning-heavy
 work, a failed `builder-fast` attempt, and prose for a public repo. `auditor`
 runs on the strongest model, because it diagnoses after a lower tier failed
 twice. Delegate through the role rather than a hand-configured agent call, so
-cost is set once. Dispatch independent subagent work at the same time by
+cost is set once. An agent call with no role and no model runs on the session
+model. A loop or a batch that starts many agents names the role or the model
+of each agent. Most spend comes from context size: each turn reads the full
+context again. The framework repo's `scripts/role-spend.py --top 10` shows
+where the spend is. Dispatch independent subagent work at the same time by
 default. The user does not need to ask. Builders run together only when their
 write scopes do not overlap. Effort levels raise reasoning depth for the
 current task. They do not change the tier. A multi-agent `Workflow` fan-out

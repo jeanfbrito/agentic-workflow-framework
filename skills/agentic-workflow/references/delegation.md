@@ -90,6 +90,13 @@ the report within minutes. Merge the work that passed its checks. Carry
 the rest as a card. A worker that runs for hours without a report is a stall,
 not progress.
 
+`builder-smart` also has a hard turn cap (`maxTurns` in its frontmatter). Each
+turn reads the full context again, so a long run costs more for each turn than
+a short run. When a worker stops at its cap, send it one message: land what
+passes, then report. Give the rest of the work to a new worker with a smaller
+brief. Do not resume the worker to continue, because the resumed worker keeps
+its full context.
+
 For a stall, check the task's actual state, including pending permission requests,
 then make one bounded probe or narrow the brief. A past permission incident is
 not proof of the current cause. Never install blanket permissions to bypass a

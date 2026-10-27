@@ -895,6 +895,32 @@ fi
 rm -rf "$RS_HOME"
 
 # ---------------------------------------------------------------------------
+# Check -- role-spend counts the main session and lists the top runs. A main
+#   session turn with 100K Opus output tokens costs $2.00, a reviewer turn with
+#   50K costs $1.00. Total $3.00. A report of subagents only would print $1.00.
+# ---------------------------------------------------------------------------
+
+RS_HOME=$(mktemp -d)
+mkdir -p "$RS_HOME/projects/p/s/subagents"
+echo '{"agentType":"reviewer","description":"probe review"}' > "$RS_HOME/projects/p/s/subagents/agent-y.meta.json"
+python3 - "$RS_HOME/projects/p" <<'PYEOF'
+import json, os, sys
+for path, n in ((os.path.join(sys.argv[1], 's.jsonl'), 100_000),
+                (os.path.join(sys.argv[1], 's/subagents/agent-y.jsonl'), 50_000)):
+    with open(path, 'w') as f:
+        f.write(json.dumps({'type': 'assistant', 'message': {'id': 'm', 'model': 'claude-opus-5-5',
+                            'usage': {'input_tokens': 0, 'output_tokens': n}}}) + '\n')
+PYEOF
+RS_OUT=$(CLAUDE_CONFIG_DIR="$RS_HOME" python3 "$SCRIPT_DIR/scripts/role-spend.py" --days 1 --top 2 2>&1)
+if echo "$RS_OUT" | grep -qF "est. \$3.00 " && echo "$RS_OUT" | grep -q '^(main session) ' \
+   && echo "$RS_OUT" | grep -qE '^ +1\.00  reviewer .*probe review$'; then
+  check "role-spend: counts the main session and lists the top runs" "$PASS"
+else
+  check "role-spend: counts the main session and lists the top runs (got: $(echo "$RS_OUT" | head -1))" "$FAIL"
+fi
+rm -rf "$RS_HOME"
+
+# ---------------------------------------------------------------------------
 # Check -- role-ab check accepts a valid spec and rejects a bad base commit
 #   before any arm spends money.
 # ---------------------------------------------------------------------------
