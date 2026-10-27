@@ -105,6 +105,14 @@ The main thread owns long-lived servers in a process session that survives
 agent completion. A watcher handles finite jobs or logfile digests; it does not
 own server lifetime or poll other agents. Preserve a requested running server.
 
+A worker stops or kills only a process that it started. A worker can need to
+stop another process, such as a dev app, a debug port or a test server. Then
+first find which agent uses that process, with `lsof -i :<port>` or the
+process's parent. When
+another agent uses it, wait for that agent to end. In one run a demo agent
+was told to quit the dev app on a shared debug port. It killed the app of a
+running loop cycle, and that cycle lost its live check.
+
 Do not merge into a tree that a running process reads. Do not edit its scripts
 either. A runtime that loads scripts lazily mixes the versions, and the run
 fails with errors that the settled tree does not have. Wait for the run

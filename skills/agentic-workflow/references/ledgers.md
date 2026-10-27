@@ -73,6 +73,9 @@ Verified: <live|test|type-check|UNVERIFIED> @ <short-sha>
 ## Open questions
 <questions or None>
 
+## Unpushed work
+<each local branch with no remote copy, its worktree, and the backup path, or None>
+
 ## Files touched
 - <path>
 ```
@@ -82,6 +85,13 @@ in the matching handoff before cleanup; do not erase another active task's notes
 Persistent platform or dependency constraints belong in `docs/KNOWN_ISSUES.md`
 with status, workaround, affected files, and a reference. These project files
 do not authorize writing to a separate durable memory system.
+
+When work cannot leave the machine yet (an embargo, a security fix, a hold on
+publishing), keep it on named local branches, not only in a loop or scratch
+branch. Back up those branches with `git bundle create` to a folder outside
+the repo, and refresh the bundle at each stop. The handoff lists each branch
+and the bundle path under `Unpushed work`. Without that list, a cleanup such
+as `worktree-gc` can remove the only copy.
 
 ## Completion
 
@@ -98,6 +108,13 @@ task's handoff into the entry, then remove only that completed handoff.
 - Attempts: <number of failed approaches>
 - Verified: <live|test|type-check|UNVERIFIED> @ <short-sha>
 ```
+
+A card can name an external ticket (Jira, GitHub issue, Linear). Then move
+that ticket to its done or QA state in the same step, when the user's rules
+allow ticket transitions. Put the PR or commit in a link on the ticket. Otherwise
+the tracker shows no progress. In one run the work closed 37 items, and all 75
+of its tickets stayed in "To Do". When the rules require a draft first, list
+the transitions in the report for approval.
 
 Keep the timestamped H2 format. `done.md` is append-only; search relevant history
 instead of reading the entire log. When agents share a tree, the main thread

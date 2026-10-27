@@ -11,7 +11,7 @@ If `$ARGUMENTS` is empty, ask the user for a task name first — use a short keb
 
 1. Ensure `.localdev/workflow/handoffs/` exists — if not, create it.
 2. If the handoff file already exists, ask the user whether to overwrite, append, or abort.
-3. Write (or update) the file with a template covering: What was done (with `Verified: <live|test|type-check|UNVERIFIED> @ <short-sha>`), Key decisions, What's next (checkboxes), Open questions, Files touched. Fill in from the CURRENT session's context.
+3. Write (or update) the file with a template covering: What was done (with `Verified: <live|test|type-check|UNVERIFIED> @ <short-sha>`), Key decisions, What's next (checkboxes), Open questions, Unpushed work (local branches with no remote copy, their worktrees and the backup bundle path, or None), Files touched. Fill in from the CURRENT session's context.
 
 # Rules
 
