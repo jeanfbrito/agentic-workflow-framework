@@ -1,6 +1,6 @@
 ---
 name: skill-review
-description: "Runs the weekly skill review. Measures which skills, commands and plugin skills actually ran in local Claude Code sessions. Counts wiki pages and missed wikis. Sorts each skill into keep, merge, promote or retire, and applies only the approved changes. Also sets the user's wiki folder. Triggered by '/skill-review', 'weekly skill review', 'which skills are useless', 'clean up my skills', 'promote this skill', 'set my wiki folder'. Also triggered by the session-start note that a skill report is ready."
+description: "Runs the weekly skill review. Measures which skills, commands and plugin skills actually ran in local Claude Code sessions. Counts wiki pages, missed wikis and missed skills. Sorts each skill into keep, merge, promote or retire, and applies only the approved changes. Also sets the user's wiki folder. Triggered by '/skill-review', 'weekly skill review', 'which skills are useless', 'clean up my skills', 'promote this skill', 'set my wiki folder'. Also triggered by the session-start note that a skill report is ready."
 ---
 
 # Skill Review
@@ -59,6 +59,20 @@ Rules for the judgment:
 The report lists sessions that saved a lesson but wrote no wiki page. For
 each one, ask the user if the finding deserves a page. Write the approved
 pages with the rules in "Writing a wiki page".
+
+## Step 3b: Missed skills
+
+The report lists main sessions that searched old transcripts
+(`~/.claude/projects/*.jsonl`) with no transcript-reading skill running. An
+agent does that to find how a job was done before, so the job repeats and has
+no skill. For each one:
+
+1. Read its first prompt. Run the "Skill candidates" recipe of the
+   `session-mining` skill on that job, to find the other sessions that did it.
+2. A job that ran in 3 or more sessions with no skill is a candidate. Propose
+   a new `trial` skill. Give it the steps that repeated and the user's
+   corrections.
+3. Create it only after the user approves.
 
 ## Step 4: Get approval, then apply
 

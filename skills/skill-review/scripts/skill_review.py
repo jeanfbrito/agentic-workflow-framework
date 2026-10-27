@@ -56,6 +56,11 @@ WIKI_TOOL_RE = re.compile(r"obsidian_(save_note|update_note|capture|replace_text
 LESSON_TOOL_RE = re.compile(r"mm_write|mm_promote")
 LESSON_SKILLS = {"learn", "postmortem", "known-issue"}
 LESSON_FILE_RE = re.compile(r"(/memory/[^/]+\.md$|/lessons\.md$|/KNOWN_ISSUES\.md$|/findings\.md$)")
+# A session that searches old transcripts usually looks for "how did we do
+# this last time". That is a procedure with no skill, so the report counts it
+# as a missed skill, unless the session ran a skill that reads transcripts.
+TRANSCRIPT_LOOKUP_RE = re.compile(r"\.claude/projects/[^\s'\"]*(\*|\.jsonl)")
+TRANSCRIPT_SKILLS = {"session-mining", "skill-review", "skill-checkup", "learn", "postmortem"}
 
 
 # ---------------------------------------------------------------------------
@@ -296,6 +301,7 @@ def scan_session(path, since, wiki_root, ignored_roots):
         "skill_edits": set(),   # SKILL.md paths written
         "wiki_writes": set(),
         "lesson_signals": set(),
+        "transcript_lookups": 0,
         "last_ts": None,
     }
     for line in raw.splitlines():
@@ -344,6 +350,9 @@ def scan_session(path, since, wiki_root, ignored_roots):
                     facts["wiki_writes"].add(f"{name}:{args.get('path') or args.get('title') or ''}")
                 elif LESSON_TOOL_RE.search(name):
                     facts["lesson_signals"].add(name.split("__")[-1])
+                if name in ("Bash", "Grep", "Glob", "Read") and TRANSCRIPT_LOOKUP_RE.search(
+                        " ".join(str(v) for v in args.values())):
+                    facts["transcript_lookups"] += 1
     if facts["last_ts"] is None:
         return None
     return facts
@@ -426,6 +435,11 @@ def measure(cfg, days, long_days):
     missed = [s for s in lesson_sessions if not s["wiki_writes"]]
     wiki_pages = sorted({w for s in week_sessions for w in s["wiki_writes"]})
     skill_edits = sorted({e for s in week_sessions for e in s["skill_edits"]})
+    missed_skills = [
+        s for s in week_sessions
+        if s["transcript_lookups"] and not s["subagent"]
+        and not {n.split(":")[-1] for n, _ in s["invocations"]} & TRANSCRIPT_SKILLS
+    ]
 
     def label(s):
         root = project_root(s["cwd"])
@@ -465,6 +479,8 @@ def measure(cfg, days, long_days):
             "missed_count": len(missed),
         },
         "skill_edits": skill_edits,
+        "missed_skills": [label(s) | {"lookups": s["transcript_lookups"]} for s in missed_skills][:30],
+        "missed_skill_count": len(missed_skills),
         "skills": skills_out,
         "unknown_invocations": dict(sorted(unknown.items(), key=lambda kv: -kv[1])[:20]),
     }
@@ -532,6 +548,8 @@ def render_markdown(report, previous):
         f"- Of those, sessions with no wiki page (missed wiki): {wiki['missed_count']}"
         f"{delta(['wiki', 'missed_count'], wiki['missed_count'])}.",
         f"- SKILL.md files created or changed: {len(report['skill_edits'])}.",
+        f"- Sessions that searched old transcripts (missed skill): {report['missed_skill_count']}"
+        f"{delta(['missed_skill_count'], report['missed_skill_count'])}.",
         "",
         "## How to read this",
         "",
@@ -540,6 +558,9 @@ def render_markdown(report, previous):
         "- **Missed wiki** means the session saved a lesson (memory, lessons file, known issue, "
         "`/learn`, `/postmortem`) but wrote no page in the wiki folder. Each one is a finding "
         "that the user did not get to read.",
+        "- **Missed skill** means the session searched old session transcripts with no "
+        "transcript-reading skill running. That usually means the agent looked for how a job "
+        "was done before. The job repeats and has no skill.",
         "- A rare skill is not a useless skill. A release skill runs once per release. "
         "Judge each skill against its expected rhythm, not against the weekly count.",
         "- Stages:",
@@ -569,6 +590,14 @@ def render_markdown(report, previous):
         for m in wiki["missed"]:
             who = " (subagent)" if m["subagent"] else ""
             lines.append(f"- {m['date']} `{m['project']}`{who}: {', '.join(m['signals'])}"
+                         + (f" - \"{m['prompt']}\"" if m["prompt"] else ""))
+        lines.append("")
+    if report["missed_skills"]:
+        lines += ["## Missed skills", "",
+                  "Each session searched old transcripts. Find the job it repeated and ask the user "
+                  "if it deserves a skill.", ""]
+        for m in report["missed_skills"]:
+            lines.append(f"- {m['date']} `{m['project']}` ({m['lookups']} searches)"
                          + (f" - \"{m['prompt']}\"" if m["prompt"] else ""))
         lines.append("")
     if report["skill_edits"]:
@@ -619,6 +648,7 @@ def cmd_measure(args):
         "generated_at": report["generated_at"],
         "unused_count": report["unused_count"],
         "wiki": {k: report["wiki"][k] for k in ("pages_written", "missed_count", "sessions_with_new_findings")},
+        "missed_skill_count": report["missed_skill_count"],
         "skills_used_week": sum(1 for s in report["skills"] if s["uses_short"]),
         "skills_total": len(report["skills"]),
     }

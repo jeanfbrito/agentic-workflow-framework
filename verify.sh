@@ -809,8 +809,10 @@ fi
 # ---------------------------------------------------------------------------
 # Check 11 -- skill-review script on a synthetic Claude home: counts a real
 #            Skill call, ignores a name that is only mentioned, flags a
-#            session that saved a lesson with no wiki page, and runs the
-#            nudge states (no wiki set, report ready, reviewed).
+#            session that saved a lesson with no wiki page, flags a session
+#            that searched old transcripts with no transcript skill (missed
+#            skill), and runs the nudge states (no wiki set, report ready,
+#            reviewed).
 # ---------------------------------------------------------------------------
 
 SR="$SCRIPT_DIR/skills/skill-review/scripts/skill_review.py"
@@ -822,6 +824,14 @@ SR_TS=$(python3 -c "from datetime import datetime,timezone;print(datetime.now(ti
 cat > "$SR_HOME/projects/p/s1.jsonl" <<JSONL
 {"type":"user","timestamp":"$SR_TS","cwd":"/tmp","message":{"role":"user","content":"mention idle-skill only"}}
 {"type":"assistant","timestamp":"$SR_TS","message":{"role":"assistant","content":[{"type":"tool_use","name":"Skill","input":{"skill":"used-skill"}},{"type":"tool_use","name":"Write","input":{"file_path":"$SR_HOME/projects/p/memory/new-finding.md"}}]}}
+JSONL
+cat > "$SR_HOME/projects/p/s2.jsonl" <<JSONL
+{"type":"user","timestamp":"$SR_TS","cwd":"/tmp","message":{"role":"user","content":"clean the disk again"}}
+{"type":"assistant","timestamp":"$SR_TS","message":{"role":"assistant","content":[{"type":"tool_use","name":"Bash","input":{"command":"grep -l 'clean the disk' ~/.claude/projects/*/*.jsonl"}}]}}
+JSONL
+cat > "$SR_HOME/projects/p/s3.jsonl" <<JSONL
+{"type":"user","timestamp":"$SR_TS","cwd":"/tmp","message":{"role":"user","content":"mine the sessions"}}
+{"type":"assistant","timestamp":"$SR_TS","message":{"role":"assistant","content":[{"type":"tool_use","name":"Skill","input":{"skill":"session-mining"}},{"type":"tool_use","name":"Bash","input":{"command":"grep -l x ~/.claude/projects/*/*.jsonl"}}]}}
 JSONL
 
 SR_NUDGE_A=$(CLAUDE_CONFIG_DIR="$SR_HOME" python3 "$SR" nudge 2>/dev/null)
@@ -837,14 +847,15 @@ SR_RESULT=$(python3 - "$SR_HOME" <<'PYEOF'
 import glob, json, sys
 r = json.load(open(sorted(glob.glob(sys.argv[1] + "/agentic-state/skill-review/report-*.json"))[-1]))
 uses = {s["key"]: s["uses_long"] for s in r["skills"]}
-ok = uses.get("used-skill") == 1 and uses.get("idle-skill") == 0 and r["wiki"]["missed_count"] == 1
-print("ok" if ok else f"bad {uses} missed={r['wiki']['missed_count']}")
+ok = (uses.get("used-skill") == 1 and uses.get("idle-skill") == 0
+      and r["wiki"]["missed_count"] == 1 and r["missed_skill_count"] == 1)
+print("ok" if ok else f"bad {uses} missed={r['wiki']['missed_count']} missed_skills={r['missed_skill_count']}")
 PYEOF
 )
 if [ "$SR_RESULT" = "ok" ] && ls "$SR_HOME/wiki/Skill Reviews/"*"Skill Review.md" >/dev/null 2>&1; then
-  check "skill-review measure: counts invoked only, flags missed wiki, writes wiki report" "$PASS"
+  check "skill-review measure: counts invoked only, flags missed wiki and missed skill, writes wiki report" "$PASS"
 else
-  check "skill-review measure: counts invoked only, flags missed wiki, writes wiki report ($SR_RESULT)" "$FAIL"
+  check "skill-review measure: counts invoked only, flags missed wiki and missed skill, writes wiki report ($SR_RESULT)" "$FAIL"
 fi
 
 SR_NUDGE_B=$(CLAUDE_CONFIG_DIR="$SR_HOME" python3 "$SR" nudge 2>/dev/null)
