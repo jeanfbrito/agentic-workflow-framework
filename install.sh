@@ -98,6 +98,7 @@ install_file "$SCRIPT_DIR/hooks/pre-compact.sh"          ~/.claude/hooks/pre-com
 install_file "$SCRIPT_DIR/hooks/stop-ledger-audit.sh"    ~/.claude/hooks/stop-ledger-audit.sh
 install_file "$SCRIPT_DIR/scripts/ledger-append.sh"      ~/.claude/hooks/ledger-append.sh
 install_file "$SCRIPT_DIR/hooks/skill-review-nudge.sh"   ~/.claude/hooks/skill-review-nudge.sh
+install_file "$SCRIPT_DIR/hooks/test-run-advisor.sh"     ~/.claude/hooks/test-run-advisor.sh
 
 # ---------------------------------------------------------------------------
 # 3b. Skills -- dynamic install (loop over skills/*/)
@@ -136,6 +137,7 @@ chmod +x ~/.claude/hooks/pre-compact.sh
 chmod +x ~/.claude/hooks/stop-ledger-audit.sh
 chmod +x ~/.claude/hooks/ledger-append.sh
 chmod +x ~/.claude/hooks/skill-review-nudge.sh
+chmod +x ~/.claude/hooks/test-run-advisor.sh
 
 # ---------------------------------------------------------------------------
 # 5. CLAUDE.md -- backup + ensure @AGENTIC.md import line
@@ -257,6 +259,15 @@ user_prompt.append({
 })
 hooks["UserPromptSubmit"] = user_prompt
 print("UP_REPLACED" if before_up > len(user_prompt) - 1 else "UP_ADDED")
+
+# --- PreToolUse: test-run advisor ---
+# Marker 'test-run-advisor.sh' identifies this entry.
+pre_tool = strip_framework(hooks.setdefault("PreToolUse", []), 'test-run-advisor.sh')
+pre_tool.append({
+    "matcher": "Bash",
+    "hooks": [{"type": "command", "command": "bash ~/.claude/hooks/test-run-advisor.sh", "timeout": 5}]
+})
+hooks["PreToolUse"] = pre_tool
 
 # --- permissions.allow ---
 # Ensure permissions and allow list exist, preserving all existing entries + order.

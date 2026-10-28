@@ -140,6 +140,8 @@ opt-in.
 Return changed paths, checks and outcomes, unresolved issues, and evidence gaps.
 Quote the exact command beside each PASS line. A PASS from a simpler
 configuration (a default flag, a smaller map, a stub) is not the result. The
-main thread reruns each check with the production flags before it merges. Then
+main thread reruns each check with the production flags before it merges. It
+skips the rerun when the worker ran the same command on the same commit. It
+integrates every ready branch first and reruns one time for the batch. Then
 it integrates the result, completes the remaining requested work, and closes
 the task once its completion criteria are met.

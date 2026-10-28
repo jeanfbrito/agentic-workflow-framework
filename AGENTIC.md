@@ -97,6 +97,20 @@ boundary, or an explicit requirement. Reuse passing evidence until a relevant
 edit, failure, contradiction, or request for independent verification justifies
 another run.
 
+**Check once per batch, not once per edit.** Integrate all the work that is
+ready (cherry-picks, rebases, agent branches), then run the checks one time on
+the result. A rerun covers only what the edit can affect: the specs of the
+changed files and their direct importers, plus the type check. Run the full
+suite only for a broad change: a shared module, a dependency, configuration or
+many merged branches. Also run it one time as the last gate before a push. A PASS on
+the same commit with the same command stays valid. Do not run it again.
+
+**Do not wait on a check.** A check that can take more than a minute runs in
+the background (`run_in_background`), or a `watcher` runs it and returns the
+verdict. The main thread continues the independent work and reads the result
+when it arrives. The `test-run-advisor` hook reminds the main thread when it
+starts a test or type-check run in the foreground.
+
 For process lifetime, IPC, global command resolution, and UI behavior, exercise
 the real path when available. Try to break an interactive change: empty input,
 double submit, reload. Prove a visual-only change (styling, layout, shader,
@@ -114,7 +128,9 @@ Settle whether something shipped or is ready from the primary artifact: the
 release or tag object, the lines a job emitted, or API state. A prerelease and
 the stable after it are different answers. The lines a job emitted are not the
 script text it echoed into the log. A delegated PASS is evidence after the main thread reruns the check with the
-production flags on the merged tree, not before. If a required check cannot
+production flags on the merged tree, not before. A PASS on the same commit with
+the same production command needs no rerun. After a batch of merges, one
+rerun on the merged tree covers all of them. If a required check cannot
 run, report `UNVERIFIED`, the reason, and what was checked. Complete unaffected work before handing back.
 
 When verification requires expensive setup (provisioning a machine, building a

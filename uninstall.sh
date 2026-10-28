@@ -78,6 +78,7 @@ remove_file ~/.claude/hooks/pre-compact.sh
 remove_file ~/.claude/hooks/stop-ledger-audit.sh
 remove_file ~/.claude/hooks/ledger-append.sh
 remove_file ~/.claude/hooks/skill-review-nudge.sh
+remove_file ~/.claude/hooks/test-run-advisor.sh
 # The skill review's personal config (~/.claude/agentic-config.json) and
 # history (~/.claude/agentic-state/) stay, so a reinstall keeps them.
 remove_file ~/.claude/skills/.agentic-framework-skills
@@ -225,6 +226,15 @@ if "UserPromptSubmit" in hooks:
         print("REMOVED_UP")
     else:
         print("UP_NOT_FOUND")
+
+if "PreToolUse" in hooks:
+    before = len(hooks["PreToolUse"])
+    hooks["PreToolUse"] = strip_entries(hooks["PreToolUse"], "test-run-advisor.sh")
+    if len(hooks["PreToolUse"]) != before:
+        changed = True
+        print("REMOVED_PTU")
+    else:
+        print("PTU_NOT_FOUND")
 
 # Strip framework permission globs (current Edit globs, the Write globs older
 # installs granted, and stale .claude/mytasks variants) from permissions.allow

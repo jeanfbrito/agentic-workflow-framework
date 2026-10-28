@@ -159,6 +159,32 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Check 5b -- test-run advisor: fires on a foreground test or type-check run,
+# skips background runs, subagents and other commands. The first case is the
+# real command that ran three times in one session, once per cherry-pick batch.
+# ---------------------------------------------------------------------------
+
+TRA_STATE=$(mktemp -d)
+tra() { AGENTIC_STATE_DIR="$TRA_STATE" bash "$SCRIPT_DIR/hooks/test-run-advisor.sh" 2>/dev/null; }
+TRA_REAL=$(echo '{"session_id":"v1","tool_input":{"command":"cd apps/meteor && TZ=UTC npx jest client/lib/e2ee client/lib/e2eeSearch 2>&1 | grep Tests"}}' | tra)
+TRA_AGAIN=$(echo '{"session_id":"v1","tool_input":{"command":"yarn test src/x"}}' | tra)
+TRA_TSC=$(echo '{"session_id":"v2","tool_input":{"command":"npx tsc --noEmit --skipLibCheck"}}' | tra)
+TRA_BG=$(echo '{"session_id":"v3","tool_input":{"command":"yarn test","run_in_background":true}}' | tra)
+TRA_SUB=$(echo '{"session_id":"v4","agent_id":"a1","tool_input":{"command":"yarn test"}}' | tra)
+TRA_OTHER=$(echo '{"session_id":"v5","tool_input":{"command":"ls jest.config.js"}}' | tra)
+rm -rf "$TRA_STATE"
+if echo "$TRA_REAL" | grep -q 'test-run:' && echo "$TRA_TSC" | grep -q 'test-run:'; then
+  check "test-run advisor: foreground jest and tsc runs get advice" "$PASS"
+else
+  check "test-run advisor: foreground jest and tsc runs get advice" "$FAIL"
+fi
+if [ -z "$TRA_AGAIN$TRA_BG$TRA_SUB$TRA_OTHER" ]; then
+  check "test-run advisor: rate limit, background, subagent and non-test commands stay silent" "$PASS"
+else
+  check "test-run advisor: rate limit, background, subagent and non-test commands stay silent" "$FAIL"
+fi
+
+# ---------------------------------------------------------------------------
 # Check 6 -- session-scan.sh three-state test (exercises the real repo hook,
 #            not a duplicated inline logic string)
 # ---------------------------------------------------------------------------
