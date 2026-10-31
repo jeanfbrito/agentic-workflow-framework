@@ -216,5 +216,7 @@ Require its matrix row to report `PASS`, not `EXCLUDED`.
 Require the row's source identity to equal the complete repository identity hash.
 Require exact runtime and environment agreement with the node's persistent environment contract.
 For packaged checks, require an artifact and its source identity.
+For final-head and external dependency binding, use [publication evidence](publication-evidence.md).
+This companion record does not change the version 1 evidence schema.
 Never search a log or free-text field for a SHA.
 The stack checker must not label a reported command result as an independently measured execution.

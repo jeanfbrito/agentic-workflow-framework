@@ -20,6 +20,8 @@ Read [references/evidence.md](references/evidence.md) for a delivery across scen
 Preserve the original scenario IDs, action permissions, decisions, conflicts, and owners.
 Use `scripts/evidence.py check <manifest.json> --json` under `python3 -I` before reporting completion.
 The checker checks recorded coverage and current identity. It does not grant permission or judge logs.
+For final-head verification, use [publication evidence](references/publication-evidence.md).
+Capture the final node and external dependencies before the run. Seal the result only when those identities still match.
 Load only the relevant reference.
 
 When the user asks to stop, pause, or "how much until we can stop": land a
