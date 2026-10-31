@@ -15,7 +15,12 @@ unrelated global copy when using the plugin's own version.
 
 Read [references/ledgers.md](references/ledgers.md) when recording or resuming
 project work. Read [references/delegation.md](references/delegation.md) when
-delegation is authorized and useful. Load only the relevant reference.
+delegation is authorized and useful.
+Read [references/evidence.md](references/evidence.md) for a delivery across scenarios or sessions.
+Preserve the original scenario IDs, action permissions, decisions, conflicts, and owners.
+Use `scripts/evidence.py check <manifest.json> --json` under `python3 -I` before reporting completion.
+The checker checks recorded coverage and current identity. It does not grant permission or judge logs.
+Load only the relevant reference.
 
 When the user asks to stop, pause, or "how much until we can stop": land a
 verified checkpoint first, write `handoffs/<task>.md`, flip `[doing]` to

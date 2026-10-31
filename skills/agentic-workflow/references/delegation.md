@@ -44,6 +44,8 @@ Read first: <the project's agent guide, the card, the paths>
 Setup: <the project's worktree or environment steps, in order>
 Owns: <the files or folders this agent may write; nothing else>
 Constraints: <locks, shared folders, commands that must not run, defaults that stay>
+Actions: <independent action/status/source/scope records, without inferred permissions>
+Evidence: <manifest path, original scenario IDs, requirements hash, owners and open conflicts>
 Production command: <each check with the exact flags the real run uses>
 Verification budget: <targeted checks while iterating; one full check at the end>
 Time budget: <wall-clock; at the budget, stop and report partial work>
@@ -51,6 +53,11 @@ Report: changed paths; each check as "command -> result line" (the exact
 command beside each PASS); unresolved issues; evidence gaps; proposed ledger
 entries. No commits outside the owned paths; no attribution lines.
 ```
+
+Keep each evidence result bound to its original scenario and complete source identity.
+Use the [manifest checker](evidence.md) for multi-scenario work.
+A worker's reported PASS does not establish the log's meaning or grant action permission.
+Batch ready integrations before checks. Reuse evidence only when its exact identity still matches.
 
 A check run with a changed flag, a smaller map or a default configuration is a
 different check. The worker reports it as such, and the main thread does not

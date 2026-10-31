@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/agentic-workflow/evidence-v1.schema.json",
+  "$ref": "#/$defs/manifest",
+  "$defs": {
+    "text": {"type": "string", "minLength": 1},
+    "hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "commit": {"type": "string", "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"},
+    "source": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "reference"],
+      "properties": {
+        "kind": {"enum": ["user", "accepted-agent-proposal", "policy", "not-requested", "reported"]},
+        "reference": {"$ref": "#/$defs/text"}
+      }
+    },
+    "permission": {
+      "type": "object", "additionalProperties": false,
+      "required": ["action", "status", "source", "scope"],
+      "properties": {
+        "action": {"enum": ["implement", "commit", "push", "pr-state", "comment", "resolve-thread", "merge"]},
+        "status": {"enum": ["authorized", "prohibited", "not-requested", "pending"]},
+        "source": {"$ref": "#/$defs/source"},
+        "scope": {"$ref": "#/$defs/text"}
+      }
+    },
+    "permissions": {"type": "array", "minItems": 7, "maxItems": 7, "items": {"$ref": "#/$defs/permission"}},
+    "owner": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "scope", "source"],
+      "properties": {"id": {"$ref": "#/$defs/text"}, "scope": {"$ref": "#/$defs/text"}, "source": {"$ref": "#/$defs/source"}}
+    },
+    "owners": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/owner"}},
+    "environment": {"type": "object", "additionalProperties": {"type": ["string", "null"]}},
+    "command": {
+      "type": "object", "additionalProperties": false,
+      "required": ["argv", "cwd"],
+      "properties": {"argv": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/text"}}, "cwd": {"$ref": "#/$defs/text"}}
+    },
+    "provenance": {"enum": ["source", "unit", "contract", "synthetic", "application", "installed"]},
+    "scenario": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "platform", "claim", "owner", "command", "runtime", "environment", "provenance", "artifact_required"],
+      "properties": {
+        "id": {"$ref": "#/$defs/text"}, "platform": {"$ref": "#/$defs/text"}, "claim": {"$ref": "#/$defs/text"}, "owner": {"$ref": "#/$defs/text"},
+        "command": {"$ref": "#/$defs/command"}, "runtime": {"$ref": "#/$defs/text"}, "environment": {"$ref": "#/$defs/environment"},
+        "provenance": {"$ref": "#/$defs/provenance"}, "artifact_required": {"type": "boolean"}
+      }
+    },
+    "requirements": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "delivery", "source", "source_paths", "scenarios", "permissions", "owners", "decisions", "conflicts"],
+      "properties": {
+        "schema_version": {"type": "integer", "enum": [1]}, "delivery": {"$ref": "#/$defs/text"}, "source": {"$ref": "#/$defs/source"},
+        "source_paths": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/text"}},
+        "scenarios": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/scenario"}},
+        "permissions": {"$ref": "#/$defs/permissions"}, "owners": {"$ref": "#/$defs/owners"},
+        "decisions": {"type": "array", "items": {"$ref": "#/$defs/decision"}},
+        "conflicts": {"type": "array", "items": {"$ref": "#/$defs/conflict"}}
+      }
+    },
+    "file": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "sha256", "mode"],
+      "properties": {
+        "path": {"$ref": "#/$defs/text"}, "sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "mode": {"enum": ["file", "executable", "symlink", "missing"]}
+      }
+    },
+    "dirty": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "status", "sha256", "mode"],
+      "properties": {
+        "path": {"$ref": "#/$defs/text"}, "status": {"type": "string", "minLength": 2, "maxLength": 2},
+        "sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}, "mode": {"enum": ["file", "executable", "symlink", "missing"]}
+      }
+    },
+    "repository": {
+      "type": "object", "additionalProperties": false,
+      "required": ["realpath", "branch", "base", "commit", "index_sha256", "inputs", "dirty"],
+      "properties": {
+        "realpath": {"$ref": "#/$defs/text"}, "branch": {"$ref": "#/$defs/text"}, "base": {"$ref": "#/$defs/commit"}, "commit": {"$ref": "#/$defs/commit"},
+        "index_sha256": {"$ref": "#/$defs/hash"}, "inputs": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/file"}},
+        "dirty": {"type": "array", "items": {"$ref": "#/$defs/dirty"}}
+      }
+    },
+    "runtime": {
+      "type": "object", "additionalProperties": false,
+      "required": ["python", "executable", "platform", "machine"],
+      "properties": {"python": {"$ref": "#/$defs/text"}, "executable": {"$ref": "#/$defs/text"}, "platform": {"$ref": "#/$defs/text"}, "machine": {"$ref": "#/$defs/text"}}
+    },
+    "pointer": {
+      "type": "object", "additionalProperties": false, "required": ["path", "sha256"],
+      "properties": {"path": {"$ref": "#/$defs/text"}, "sha256": {"$ref": "#/$defs/hash"}}
+    },
+    "artifact": {
+      "type": ["object", "null"], "additionalProperties": false, "required": ["path", "sha256", "source_identity_sha256"],
+      "properties": {"path": {"$ref": "#/$defs/text"}, "sha256": {"$ref": "#/$defs/hash"}, "source_identity_sha256": {"$ref": "#/$defs/hash"}}
+    },
+    "evidence": {
+      "type": ["object", "null"], "additionalProperties": false,
+      "required": ["repository_sha256", "checker_runtime", "command", "runtime", "environment", "provenance", "result", "exit_code", "log", "artifact"],
+      "properties": {
+        "repository_sha256": {"$ref": "#/$defs/hash"}, "checker_runtime": {"$ref": "#/$defs/runtime"},
+        "command": {"$ref": "#/$defs/command"}, "runtime": {"$ref": "#/$defs/text"}, "environment": {"$ref": "#/$defs/environment"},
+        "provenance": {"$ref": "#/$defs/provenance"}, "result": {"enum": ["PASS", "FAIL", "UNVERIFIED"]},
+        "exit_code": {"type": ["integer", "null"]}, "log": {"$ref": "#/$defs/pointer"}, "artifact": {"$ref": "#/$defs/artifact"}
+      }
+    },
+    "row": {
+      "type": "object", "additionalProperties": false, "required": ["id", "status", "reason", "decision", "evidence"],
+      "properties": {
+        "id": {"$ref": "#/$defs/text"}, "status": {"enum": ["PASS", "FAIL", "UNVERIFIED", "EXCLUDED"]},
+        "reason": {"type": "string"}, "decision": {"type": ["string", "null"]}, "evidence": {"$ref": "#/$defs/evidence"}
+      }
+    },
+    "decision": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "kind", "status", "source", "owner", "scenarios", "summary"],
+      "properties": {
+        "id": {"$ref": "#/$defs/text"}, "kind": {"enum": ["decision", "scope-reduction", "conflict-resolution"]},
+        "status": {"enum": ["approved", "pending", "rejected"]}, "source": {"$ref": "#/$defs/source"}, "owner": {"$ref": "#/$defs/text"},
+        "scenarios": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/text"}}, "summary": {"$ref": "#/$defs/text"}
+      }
+    },
+    "conflict": {
+      "type": "object", "additionalProperties": false, "required": ["id", "sources", "owner", "status", "decision"],
+      "properties": {
+        "id": {"$ref": "#/$defs/text"}, "sources": {"type": "array", "minItems": 2, "items": {"$ref": "#/$defs/text"}},
+        "owner": {"$ref": "#/$defs/text"}, "status": {"enum": ["open", "resolved"]}, "decision": {"type": ["string", "null"]}
+      }
+    },
+    "manifest": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "delivery", "requirements", "repository", "checker_runtime", "permissions", "owners", "decisions", "conflicts", "matrix"],
+      "properties": {
+        "schema_version": {"type": "integer", "enum": [1]}, "delivery": {"$ref": "#/$defs/text"}, "requirements": {"$ref": "#/$defs/pointer"},
+        "repository": {"$ref": "#/$defs/repository"}, "checker_runtime": {"$ref": "#/$defs/runtime"},
+        "permissions": {"$ref": "#/$defs/permissions"}, "owners": {"$ref": "#/$defs/owners"},
+        "decisions": {"type": "array", "items": {"$ref": "#/$defs/decision"}}, "conflicts": {"type": "array", "items": {"$ref": "#/$defs/conflict"}},
+        "matrix": {"type": "array", "items": {"$ref": "#/$defs/row"}}
+      }
+    }
+  }
+}

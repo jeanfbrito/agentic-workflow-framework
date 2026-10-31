@@ -16,10 +16,23 @@ or small edit needs no card. `/init-agentic` supplies the directory layout.
 - Attempts: 0/2
 - DoD: <observable outcome and exact focused verification scope>
 - Deps: none
+- Evidence: <absolute manifest path, or none for a small single-scenario task>
+- Requirements: <absolute original requirements path and SHA-256>
+- Actions: <action | authorized/prohibited/not-requested/pending | source | scope, one row per action>
+- Decisions/conflicts/owners: <manifest entries or explicit unresolved items>
 - Verified: <live|test|type-check|UNVERIFIED> @ <short-sha>
 ```
 
+For multi-scenario work, use the [evidence schema and checker](evidence.md).
+Record each action separately: implementation, commit, push, PR state, comments, thread resolution, and merge.
+Retain its source and scope. A closed PR does not cancel separately authorized commit or push actions.
+`not-requested` is not a user prohibition. A manifest cannot authorize an action.
+Keep the original requirements hash in the card before evidence collection.
+Record scope changes as decisions without removing original scenario IDs.
+
 Update `Verified` after each check run. Stop warns when its sha is not HEAD.
+A matching SHA alone does not establish reusable evidence.
+The manifest also checks relevant dirty content, exact command, runtime, environment, and log hashes.
 Track failed approaches in `Attempts`. At two failures, diagnose the root
 constraint before implementing another approach. Update the card with the
 resulting decision, rather than repeating the failed approach.
@@ -94,6 +107,12 @@ and the bundle path under `Unpushed work`. Without that list, a cleanup such
 as `worktree-gc` can remove the only copy.
 
 ## Completion
+
+Use the original scope when reporting completion.
+Run the evidence checker when the card has a manifest.
+List each `UNVERIFIED` scenario and each approved exclusion explicitly.
+Do not describe an incomplete original matrix as complete under a narrower title.
+Separate measured identity facts from reported results and permission records.
 
 Remove the completed card and append to `done.md`. Absorb useful content from the
 task's handoff into the entry, then remove only that completed handoff.

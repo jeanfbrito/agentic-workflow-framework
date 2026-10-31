@@ -91,6 +91,16 @@ the result usable and reviewable. Fix failures caused by the change and rerun
 affected checks within existing authorization. Do not stop at the first patch
 when running or inspecting the result is part of the request.
 
+For a delivery across scenarios or sessions, use the
+[evidence manifest](skills/agentic-workflow/references/evidence.md).
+Preserve the original scenario IDs and independent action permissions, with source and scope.
+Record decisions, conflicts, and owners in that manifest.
+Run its read-only checker before reporting completion.
+A checker PASS checks identity and coverage, not log meaning or permission.
+Keep reported results separate from measured facts.
+List missing and `UNVERIFIED` scenarios from the original scope.
+An approved scope reduction keeps its original IDs and cites its decision.
+
 Choose verification from the project's actual commands and the affected behavior.
 Use focused checks. Broaden them for an unresolved risk, an integration
 boundary, or an explicit requirement. Reuse passing evidence until a relevant

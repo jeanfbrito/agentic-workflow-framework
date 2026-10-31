@@ -1,0 +1,70 @@
+{
+  "_note": "Teaching wrapper only. These placeholders are not evidence. Save each nested document separately and replace all identities.",
+  "requirements": {
+    "schema_version": 1,
+    "delivery": "reset-browser",
+    "source": {"kind": "user", "reference": "Original request, message 1"},
+    "source_paths": ["src", "tests", "package.json", "yarn.lock"],
+    "scenarios": [
+      {
+        "id": "browser-successful-reset",
+        "platform": "browser",
+        "claim": "A successful reset removes old local data before cleanup",
+        "owner": "maintainer",
+        "command": {"argv": ["yarn", "test:e2e", "reset.spec.ts", "--project=chromium"], "cwd": "/absolute/repo"},
+        "runtime": "Chromium exact-version",
+        "environment": {"BROWSER_BASE_URL": "http://localhost:3000", "BUILD_SOURCE_IDENTITY": "record-the-server-source-identity"},
+        "provenance": "application",
+        "artifact_required": false
+      }
+    ],
+    "permissions": [
+      {"action": "implement", "status": "authorized", "source": {"kind": "user", "reference": "Message 1"}, "scope": "Reset fix"},
+      {"action": "commit", "status": "authorized", "source": {"kind": "user", "reference": "Message 2"}, "scope": "Existing fix branch"},
+      {"action": "push", "status": "authorized", "source": {"kind": "user", "reference": "Message 2"}, "scope": "Existing fix branch"},
+      {"action": "pr-state", "status": "prohibited", "source": {"kind": "user", "reference": "Message 2"}, "scope": "Keep PR closed"},
+      {"action": "comment", "status": "not-requested", "source": {"kind": "not-requested", "reference": "Current request"}, "scope": "PR"},
+      {"action": "resolve-thread", "status": "not-requested", "source": {"kind": "not-requested", "reference": "Current request"}, "scope": "PR"},
+      {"action": "merge", "status": "not-requested", "source": {"kind": "not-requested", "reference": "Current request"}, "scope": "PR"}
+    ],
+    "owners": [{"id": "maintainer", "scope": "Browser reset", "source": {"kind": "user", "reference": "Message 1"}}],
+    "decisions": [],
+    "conflicts": []
+  },
+  "manifest": {
+    "schema_version": 1,
+    "delivery": "reset-browser",
+    "requirements": {"path": "/absolute/evidence/requirements.json", "sha256": "0000000000000000000000000000000000000000000000000000000000000000"},
+    "repository": {
+      "realpath": "/absolute/repo",
+      "branch": "fix/reset",
+      "base": "0000000000000000000000000000000000000000",
+      "commit": "0000000000000000000000000000000000000000",
+      "index_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "inputs": [{"path": "src/reset.ts", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "mode": "file"}],
+      "dirty": []
+    },
+    "checker_runtime": {"python": "exact-version", "executable": "/absolute/python3", "platform": "exact-platform", "machine": "arm64"},
+    "permissions": [
+      {"action": "implement", "status": "authorized", "source": {"kind": "user", "reference": "Message 1"}, "scope": "Reset fix"},
+      {"action": "commit", "status": "authorized", "source": {"kind": "user", "reference": "Message 2"}, "scope": "Existing fix branch"},
+      {"action": "push", "status": "authorized", "source": {"kind": "user", "reference": "Message 2"}, "scope": "Existing fix branch"},
+      {"action": "pr-state", "status": "prohibited", "source": {"kind": "user", "reference": "Message 2"}, "scope": "Keep PR closed"},
+      {"action": "comment", "status": "not-requested", "source": {"kind": "not-requested", "reference": "Current request"}, "scope": "PR"},
+      {"action": "resolve-thread", "status": "not-requested", "source": {"kind": "not-requested", "reference": "Current request"}, "scope": "PR"},
+      {"action": "merge", "status": "not-requested", "source": {"kind": "not-requested", "reference": "Current request"}, "scope": "PR"}
+    ],
+    "owners": [{"id": "maintainer", "scope": "Browser reset", "source": {"kind": "user", "reference": "Message 1"}}],
+    "decisions": [],
+    "conflicts": [],
+    "matrix": [
+      {
+        "id": "browser-successful-reset",
+        "status": "UNVERIFIED",
+        "reason": "Successful browser reset did not run",
+        "decision": null,
+        "evidence": null
+      }
+    ]
+  }
+}
