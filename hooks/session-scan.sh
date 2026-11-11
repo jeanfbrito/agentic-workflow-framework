@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# Windows: make `python3` start a real Python 3 (see agentic-python.sh).
+case "${BASH_SOURCE[0]}" in */* | *\\*) _agentic_lib="${BASH_SOURCE[0]%[/\\]*}/agentic-python.sh" ;; *) _agentic_lib=./agentic-python.sh ;; esac
+# shellcheck source=hooks/agentic-python.sh
+[ -f "$_agentic_lib" ] && . "$_agentic_lib"
+
 # session-scan.sh -- SessionStart hook: budgeted, value-ordered digest of
 # .localdev/workflow/ ledger state.
 #

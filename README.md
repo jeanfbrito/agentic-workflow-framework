@@ -106,9 +106,57 @@ cd ~/agentic-workflow-framework
 ./install.sh
 ```
 
-Pass `--yes` / `-y` to skip the confirmation prompt. Pass `--link` to symlink instead of copy (dev mode — edits to the repo are reflected immediately).
+Pass `--yes` / `-y` to skip the confirmation prompt. Pass `--link` to symlink instead of copy (dev mode — edits to the repo are reflected immediately). On Windows, `--link` requires Developer Mode.
 
 > The agent-driven self-installer has been retired (its embedded file copies drifted from the source of truth). Use the plugin marketplace path or the shell installer above.
+
+**Requirements:** bash, git, and Python 3.8 or later. `jq` is optional: without it, the
+test-run advisor hook stays silent and `verify.sh` marks its check as skipped.
+
+### Windows
+
+The installer, the hooks and `verify.sh` run in **Git Bash** (from Git for Windows).
+Claude Code on Windows uses Git Bash to run hooks, so this is the shell you have already.
+MSYS2 and Cygwin bash also work. PowerShell and `cmd.exe` are not supported.
+
+1. Install Python 3 and, optionally, jq:
+
+   ```sh
+   winget install Python.Python.3.12
+   winget install jqlang.jq
+   ```
+
+2. Clone and run the installer from Git Bash, the same as on macOS and Linux:
+
+   ```sh
+   git clone https://github.com/jeanfbrito/agentic-workflow-framework.git ~/agentic-workflow-framework
+   cd ~/agentic-workflow-framework
+   ./install.sh
+   ```
+
+3. For `--link` (dev mode), turn on **Developer Mode** first: Settings > System >
+   For developers > Developer Mode. Windows lets you make symlinks only in
+   Developer Mode. Without it, `./install.sh --link` stops before it changes
+   anything and tells you what to do. The default copy mode does not need it.
+
+What is different on Windows, and what the framework does about it:
+
+| Windows behavior | What the framework does |
+| --- | --- |
+| `python3` is often the Microsoft Store alias. It prints "Python was not found" and exits 9009. | `hooks/agentic-python.sh` finds a real Python 3 (`python3`, then `python`, then `py -3`). It saves the path in `~/.claude/.agentic-python`, so later hook runs start no search. Set `AGENTIC_PYTHON` to choose an interpreter. |
+| Python reads and writes files in the ANSI code page (cp1252). | The hooks run Python in UTF-8 mode (`PYTHONUTF8=1`). The scripts open files with `encoding="utf-8"`. |
+| `ln -s` in Git Bash makes a copy with no warning. A real symlink needs Developer Mode. | `--link` requires Developer Mode and makes real symlinks (`winsymlinks:nativestrict`). It checks this before the first link, so it never makes a copy without telling you. |
+| Git for Windows checks out with CRLF line endings. | `.gitattributes` keeps every file LF. |
+| Hook payloads give paths with backslashes. | The path checks compare with forward slashes on Windows. |
+
+Skill steps tell Claude to run `python3 ...`. If `python3` is the Store alias, the installer
+prints a two-line command that makes `~/bin/python3` start the real interpreter. Git Bash
+puts `~/bin` first on `PATH`. You can also turn off the alias in Settings > Apps > Advanced
+app settings > App execution aliases.
+
+On macOS and Linux, none of this runs: `agentic-python.sh` does not change `python3` and
+starts no process, and `--link` uses plain `ln -sfn`. CI runs the install, verify and uninstall smoke tests on Ubuntu and
+on Windows.
 
 ---
 
@@ -220,6 +268,9 @@ dispatch agents or authorize production changes.
 - **Orchestrator hook not firing**: Check that `~/.claude/hooks/orchestrator.sh` is executable (`chmod +x`) and that `settings.json` contains the `UserPromptSubmit` entry. Run `./verify.sh` to diagnose.
 - **Verify the full installation**: `./verify.sh` from the repo root runs all checks (files, hooks, skills, permission globs, repo structure) and prints `[x]` / `[ ]` per item. Exit code 0 means everything is healthy.
 - **Hook fires but produces no output on short prompts**: That is expected behavior -- the orchestrator hook is a no-op for prompts under the word threshold.
+- **Windows: "Python 3.8 or later is required"**: Only the Microsoft Store alias was found. Install Python (`winget install Python.Python.3.12`), open a new Git Bash, and run `./install.sh` again. To pick an interpreter, run `AGENTIC_PYTHON=/c/Python312/python.exe ./install.sh`.
+- **Windows: hooks use an old Python after you upgrade it**: Delete `~/.claude/.agentic-python`. The next hook run finds the new interpreter.
+- **Windows: `$'\r': command not found`**: The checkout has CRLF line endings, usually from a clone made before `.gitattributes` existed. Run `git rm -r --cached . && git reset --hard` in the repo (this discards uncommitted changes), then `./install.sh` again.
 - **Reinstall doesn't overwrite backups**: By design. The named backup (`.bak.agentic-workflow-framework`) is a one-shot pre-installation snapshot. Delete it manually if you want a fresh baseline.
 
 ---

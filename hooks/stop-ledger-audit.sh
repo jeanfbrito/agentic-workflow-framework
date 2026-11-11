@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# Windows: make `python3` start a real Python 3 (see agentic-python.sh).
+case "${BASH_SOURCE[0]}" in */* | *\\*) _agentic_lib="${BASH_SOURCE[0]%[/\\]*}/agentic-python.sh" ;; *) _agentic_lib=./agentic-python.sh ;; esac
+# shellcheck source=hooks/agentic-python.sh
+[ -f "$_agentic_lib" ] && . "$_agentic_lib"
+
 # stop-ledger-audit.sh -- Stop hook: deterministic ledger hygiene checks.
 #
 # Diffs what the session actually touched (via the transcript JSONL) against
@@ -107,6 +112,8 @@ def scan_transcript(transcript_path):
                 if not fp or not isinstance(fp, str):
                     continue
                 norm = os.path.normpath(fp)
+                if os.sep == "\\":  # Windows: compare with forward slashes
+                    norm = norm.replace("\\", "/")
                 if "/.localdev/" in norm or norm.startswith(".localdev/"):
                     if norm.endswith("/todo.md") or norm == "todo.md":
                         todo_written = True

@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# Windows: make `python3` start a real Python 3 (see agentic-python.sh).
+case "${BASH_SOURCE[0]}" in */* | *\\*) _agentic_lib="${BASH_SOURCE[0]%[/\\]*}/agentic-python.sh" ;; *) _agentic_lib=./agentic-python.sh ;; esac
+# shellcheck source=hooks/agentic-python.sh
+[ -f "$_agentic_lib" ] && . "$_agentic_lib"
+
 # skill-review-nudge.sh -- SessionStart hook for the weekly skill review.
 # Starts a background measurement when the last one is 7 or more days old,
 # and points to an unreviewed report at most once per day. Advisory only:
