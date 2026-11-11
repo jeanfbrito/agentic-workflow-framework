@@ -38,6 +38,9 @@ jobs:
             exit 1
           fi
 
+      - name: Python unit tests
+        run: python3 -I -m unittest discover -s tests -p 'test_*.py' -v
+
       - name: Set temp HOME for install/uninstall smoke tests
         run: echo "HOME=$(mktemp -d)" >> "$GITHUB_ENV"
 

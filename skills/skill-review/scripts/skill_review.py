@@ -47,7 +47,6 @@ BUILTIN = {
     "update-config", "upgrade", "usage", "vim", "workflow-authoring",
 }
 
-MAX_FILE_BYTES = 16 * 1024 * 1024
 COMMAND_NAME_RE = re.compile(r"<command-name>/([A-Za-z0-9_:.-]+)</command-name>")
 EDIT_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 WIKI_TOOL_RE = re.compile(r"obsidian_(save_note|update_note|capture|replace_text)")
@@ -288,8 +287,10 @@ def under(path_str, root):
 
 def scan_session(path, since, wiki_root, ignored_roots):
     """Return the facts one transcript contributes inside the window."""
+    # Read every line. Transcripts are append-only, so a size cap would cut
+    # the newest lines, which are the lines the window counts (issue #3).
     try:
-        raw = path.read_text(errors="replace")[:MAX_FILE_BYTES]
+        handle = path.open(errors="replace")
     except OSError:
         return None
     facts = {
@@ -304,55 +305,56 @@ def scan_session(path, since, wiki_root, ignored_roots):
         "transcript_lookups": 0,
         "last_ts": None,
     }
-    for line in raw.splitlines():
-        try:
-            obj = json.loads(line)
-        except ValueError:
-            continue
-        ts = parse_ts(obj.get("timestamp"))
-        if ts is None or ts < since:
-            continue
-        facts["last_ts"] = ts
-        facts["cwd"] = facts["cwd"] or obj.get("cwd")
-        message = obj.get("message")
-        if obj.get("type") not in ("user", "assistant") or not isinstance(message, dict):
-            continue
-        content = message.get("content")
-        blocks = content if isinstance(content, list) else [{"type": "text", "text": content}]
-        for block in blocks:
-            if not isinstance(block, dict):
+    with handle:
+        for line in handle:
+            try:
+                obj = json.loads(line)
+            except ValueError:
                 continue
-            if block.get("type") == "text" and obj.get("type") == "user":
-                text = block.get("text") or ""
-                if not isinstance(text, str):
+            ts = parse_ts(obj.get("timestamp"))
+            if ts is None or ts < since:
+                continue
+            facts["last_ts"] = ts
+            facts["cwd"] = facts["cwd"] or obj.get("cwd")
+            message = obj.get("message")
+            if obj.get("type") not in ("user", "assistant") or not isinstance(message, dict):
+                continue
+            content = message.get("content")
+            blocks = content if isinstance(content, list) else [{"type": "text", "text": content}]
+            for block in blocks:
+                if not isinstance(block, dict):
                     continue
-                for name in COMMAND_NAME_RE.findall(text):
-                    facts["invocations"].append((name, ts))
-                if facts["first_prompt"] is None and text.strip() and not text.lstrip().startswith("<"):
-                    facts["first_prompt"] = " ".join(text.split())[:90]
-            elif block.get("type") == "tool_use":
-                name = str(block.get("name") or "")
-                args = block.get("input") if isinstance(block.get("input"), dict) else {}
-                if name == "Skill" and args.get("skill"):
-                    skill = str(args["skill"])
-                    facts["invocations"].append((skill, ts))
-                    if skill.split(":")[-1] in LESSON_SKILLS:
-                        facts["lesson_signals"].add(f"/{skill}")
-                elif name in EDIT_TOOLS:
-                    target = str(args.get("file_path") or args.get("notebook_path") or "")
-                    if target.endswith("/SKILL.md"):
-                        facts["skill_edits"].add(target)
-                    if under(target, wiki_root) and not any(under(target, r) for r in ignored_roots):
-                        facts["wiki_writes"].add(target)
-                    if LESSON_FILE_RE.search(target) and not under(target, wiki_root):
-                        facts["lesson_signals"].add(Path(target).name)
-                elif WIKI_TOOL_RE.search(name):
-                    facts["wiki_writes"].add(f"{name}:{args.get('path') or args.get('title') or ''}")
-                elif LESSON_TOOL_RE.search(name):
-                    facts["lesson_signals"].add(name.split("__")[-1])
-                if name in ("Bash", "Grep", "Glob", "Read") and TRANSCRIPT_LOOKUP_RE.search(
-                        " ".join(str(v) for v in args.values())):
-                    facts["transcript_lookups"] += 1
+                if block.get("type") == "text" and obj.get("type") == "user":
+                    text = block.get("text") or ""
+                    if not isinstance(text, str):
+                        continue
+                    for name in COMMAND_NAME_RE.findall(text):
+                        facts["invocations"].append((name, ts))
+                    if facts["first_prompt"] is None and text.strip() and not text.lstrip().startswith("<"):
+                        facts["first_prompt"] = " ".join(text.split())[:90]
+                elif block.get("type") == "tool_use":
+                    name = str(block.get("name") or "")
+                    args = block.get("input") if isinstance(block.get("input"), dict) else {}
+                    if name == "Skill" and args.get("skill"):
+                        skill = str(args["skill"])
+                        facts["invocations"].append((skill, ts))
+                        if skill.split(":")[-1] in LESSON_SKILLS:
+                            facts["lesson_signals"].add(f"/{skill}")
+                    elif name in EDIT_TOOLS:
+                        target = str(args.get("file_path") or args.get("notebook_path") or "")
+                        if target.endswith("/SKILL.md"):
+                            facts["skill_edits"].add(target)
+                        if under(target, wiki_root) and not any(under(target, r) for r in ignored_roots):
+                            facts["wiki_writes"].add(target)
+                        if LESSON_FILE_RE.search(target) and not under(target, wiki_root):
+                            facts["lesson_signals"].add(Path(target).name)
+                    elif WIKI_TOOL_RE.search(name):
+                        facts["wiki_writes"].add(f"{name}:{args.get('path') or args.get('title') or ''}")
+                    elif LESSON_TOOL_RE.search(name):
+                        facts["lesson_signals"].add(name.split("__")[-1])
+                    if name in ("Bash", "Grep", "Glob", "Read") and TRANSCRIPT_LOOKUP_RE.search(
+                            " ".join(str(v) for v in args.values())):
+                        facts["transcript_lookups"] += 1
     if facts["last_ts"] is None:
         return None
     return facts
