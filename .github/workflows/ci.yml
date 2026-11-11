@@ -52,3 +52,55 @@ jobs:
 
       - name: Uninstall smoke test
         run: bash uninstall.sh --yes
+
+  # Windows: Git Bash, the python.org interpreter as `python`, and no `python3`
+  # guarantee. The same install, verify and uninstall smoke tests as Linux,
+  # in copy mode and in --link mode.
+  windows-smoke:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Line endings are LF in the checkout
+        run: |
+          if git ls-files --eol | grep -E 'w/crlf'; then
+            echo "CRLF found in the checkout. Check .gitattributes." >&2
+            exit 1
+          fi
+
+      - name: Python unit tests
+        run: python -I -m unittest discover -s tests -p 'test_*.py' -v
+
+      - name: Set temp HOME for install/uninstall smoke tests
+        # Python on Windows reads USERPROFILE, not HOME, for "~". Set both.
+        run: |
+          h=$(cygpath -m "$RUNNER_TEMP/home")
+          mkdir -p "$h"
+          echo "HOME=$h" >> "$GITHUB_ENV"
+          echo "USERPROFILE=$(cygpath -w "$h")" >> "$GITHUB_ENV"
+
+      - name: Install smoke test
+        run: bash install.sh --yes
+
+      - name: Verify smoke test
+        run: bash verify.sh
+
+      - name: Uninstall smoke test
+        run: bash uninstall.sh --yes
+
+      - name: Install --link smoke test
+        run: |
+          bash install.sh --yes --link
+          for s in "$HOME"/.claude/skills/*/; do
+            s=${s%/}
+            [ -L "$s" ] || { echo "$s is not a link" >&2; exit 1; }
+          done
+
+      - name: Uninstall after --link keeps the repo files
+        run: |
+          bash uninstall.sh --yes
+          test -f skills/agentic-workflow/SKILL.md
