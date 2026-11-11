@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Windows: make `python3` start a real Python 3 (see agentic-python.sh).
+# There, python3 is a function. The heredoc call below passes no arguments.
+# shellcheck disable=SC2119
 case "${BASH_SOURCE[0]}" in */* | *\\*) _agentic_lib="${BASH_SOURCE[0]%[/\\]*}/agentic-python.sh" ;; *) _agentic_lib=./agentic-python.sh ;; esac
 # shellcheck source=hooks/agentic-python.sh
 [ -f "$_agentic_lib" ] && . "$_agentic_lib"
