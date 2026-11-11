@@ -106,7 +106,13 @@ cd ~/agentic-workflow-framework
 ./install.sh
 ```
 
-Pass `--yes` / `-y` to skip the confirmation prompt. Pass `--link` to symlink instead of copy (dev mode — edits to the repo are reflected immediately). On Windows, `--link` requires Developer Mode.
+Pass `--yes` / `-y` to skip the confirmation prompt.
+
+The installer links the framework files into `~/.claude/` (symlinks to this clone),
+so a `git pull` updates the install. Do not move or delete the clone, because the links
+point into it. A branch switch in the clone also changes what Claude loads.
+Pass `--copy` to copy the files instead. Then the install does not change until you run
+the installer again. On Windows, the link install requires Developer Mode.
 
 > The agent-driven self-installer has been retired (its embedded file copies drifted from the source of truth). Use the plugin marketplace path or the shell installer above.
 
@@ -119,14 +125,19 @@ The installer, the hooks and `verify.sh` run in **Git Bash** (from Git for Windo
 Claude Code on Windows uses Git Bash to run hooks, so this is the shell you have already.
 MSYS2 and Cygwin bash also work. PowerShell and `cmd.exe` are not supported.
 
-1. Install Python 3 and, optionally, jq:
+1. Turn on **Developer Mode**: Settings > System > For developers > Developer Mode.
+   Windows lets you make symlinks only in Developer Mode, and the installer links
+   by default. Without it, `./install.sh` stops before it changes anything and tells
+   you what to do. `./install.sh --copy` does not need it.
+
+2. Install Python 3 and, optionally, jq:
 
    ```sh
    winget install Python.Python.3.12
    winget install jqlang.jq
    ```
 
-2. Clone and run the installer from Git Bash, the same as on macOS and Linux:
+3. Clone and run the installer from Git Bash, the same as on macOS and Linux:
 
    ```sh
    git clone https://github.com/jeanfbrito/agentic-workflow-framework.git ~/agentic-workflow-framework
@@ -134,18 +145,13 @@ MSYS2 and Cygwin bash also work. PowerShell and `cmd.exe` are not supported.
    ./install.sh
    ```
 
-3. For `--link` (dev mode), turn on **Developer Mode** first: Settings > System >
-   For developers > Developer Mode. Windows lets you make symlinks only in
-   Developer Mode. Without it, `./install.sh --link` stops before it changes
-   anything and tells you what to do. The default copy mode does not need it.
-
 What is different on Windows, and what the framework does about it:
 
 | Windows behavior | What the framework does |
 | --- | --- |
 | `python3` is often the Microsoft Store alias. It prints "Python was not found" and exits 9009. | `hooks/agentic-python.sh` finds a real Python 3 (`python3`, then `python`, then `py -3`). It saves the path in `~/.claude/.agentic-python`, so later hook runs start no search. Set `AGENTIC_PYTHON` to choose an interpreter. |
 | Python reads and writes files in the ANSI code page (cp1252). | The hooks run Python in UTF-8 mode (`PYTHONUTF8=1`). The scripts open files with `encoding="utf-8"`. |
-| `ln -s` in Git Bash makes a copy with no warning. A real symlink needs Developer Mode. | `--link` requires Developer Mode and makes real symlinks (`winsymlinks:nativestrict`). It checks this before the first link, so it never makes a copy without telling you. |
+| `ln -s` in Git Bash makes a copy with no warning. A real symlink needs Developer Mode. | The link install requires Developer Mode and makes real symlinks (`winsymlinks:nativestrict`). It checks this before the first link, so it never makes a copy without telling you. |
 | Git for Windows checks out with CRLF line endings. | `.gitattributes` keeps every file LF. |
 | Hook payloads give paths with backslashes. | The path checks compare with forward slashes on Windows. |
 
@@ -155,7 +161,7 @@ puts `~/bin` first on `PATH`. You can also turn off the alias in Settings > Apps
 app settings > App execution aliases.
 
 On macOS and Linux, none of this runs: `agentic-python.sh` does not change `python3` and
-starts no process, and `--link` uses plain `ln -sfn`. CI runs the install, verify and uninstall smoke tests on Ubuntu and
+starts no process, and the link install uses plain `ln -sfn`. CI runs `install.sh`, `verify.sh` and `uninstall.sh` on Ubuntu and
 on Windows.
 
 ---
