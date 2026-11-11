@@ -17,21 +17,25 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # ---------------------------------------------------------------------------
 
 YES=0
-LINK=0
+LINK=1   # Default: symlink into this clone, so a git pull updates the install.
 WIKI_DIR=""
 for arg in "$@"; do
   case "$arg" in
     --yes|-y) YES=1 ;;
     --link)   LINK=1 ;;
+    --copy)   LINK=0 ;;
     --wiki-dir=*) WIKI_DIR="${arg#--wiki-dir=}" ;;
     --help|-h)
-      echo "Usage: ./install.sh [--yes|-y] [--link] [--wiki-dir=PATH]"
+      echo "Usage: ./install.sh [--yes|-y] [--copy] [--wiki-dir=PATH]"
       echo ""
       echo "  --yes, -y         Skip the confirmation prompt."
-      echo "  --link            Symlink framework files instead of copying (dev mode)."
-      echo "                    Use when iterating on the repo without reinstalling."
+      echo "  (default)         Symlink framework files into this clone. A git pull or"
+      echo "                    a branch switch in the clone changes the install."
       echo "                    Windows: needs Developer Mode (Settings > System >"
-      echo "                    For developers). Copy mode does not need it."
+      echo "                    For developers)."
+      echo "  --copy            Copy the files. The install does not follow the clone,"
+      echo "                    and Windows does not need Developer Mode."
+      echo "  --link            Accepted for older scripts. Same as the default."
       echo "  --wiki-dir=PATH   Folder for wiki pages (an Obsidian vault or any folder"
       echo "                    of Markdown notes). Saved in ~/.claude/agentic-config.json."
       exit 0
@@ -75,10 +79,10 @@ fi
 
 # Windows: Git Bash `ln -s` makes a COPY with no warning unless it is told to
 # make a real symlink (winsymlinks:nativestrict). A real symlink needs
-# Developer Mode, so --link on Windows requires it. This check runs before the
-# installer changes anything, and it stops with the steps to turn it on.
-# Copy mode (the default) makes no symlinks and does not need Developer Mode.
-# macOS and Linux use plain `ln -sfn`, as before.
+# Developer Mode, so the default link install on Windows requires it. This
+# check runs before the installer changes anything, and it stops with the steps
+# to turn it on. --copy makes no symlinks and does not need Developer Mode.
+# macOS and Linux use plain `ln -sfn`.
 if agentic_is_windows; then
   export MSYS="${MSYS:+$MSYS }winsymlinks:nativestrict"
   export CYGWIN="${CYGWIN:+$CYGWIN }winsymlinks:nativestrict"
@@ -89,10 +93,10 @@ require_windows_symlinks() {
   probe=$(mktemp -d)
   if ! ln -s "$probe" "$probe/link" 2>/dev/null; then
     rm -rf "$probe"
-    echo "ERROR: --link on Windows needs Developer Mode, which lets you make symlinks." >&2
+    echo "ERROR: the link install on Windows needs Developer Mode, which lets you make symlinks." >&2
     echo "  1. Open Settings > System > For developers and turn on Developer Mode." >&2
-    echo "  2. Open a new Git Bash and run ./install.sh --link again." >&2
-    echo "  Or install without --link: files are copied, and Developer Mode is not needed." >&2
+    echo "  2. Open a new Git Bash and run ./install.sh again." >&2
+    echo "  Or run ./install.sh --copy: files are copied, and Developer Mode is not needed." >&2
     exit 1
   fi
   rm -f "$probe/link"
@@ -413,7 +417,8 @@ echo ""
 SKILL_COUNT="${#INSTALLED_SKILLS[@]}"
 CORE_COUNT=$((9 + AGENT_COUNT + COMMAND_COUNT))  # AGENTIC.md + 7 hook files + ledger-append.sh + agents + commands
 if [ "$LINK" -eq 1 ]; then
-  echo "Framework files: linked (dev mode) -- $CORE_COUNT core symlinks + $SKILL_COUNT skill(s) to $SCRIPT_DIR"
+  echo "Framework files: linked -- $CORE_COUNT core symlinks + $SKILL_COUNT skill(s) to $SCRIPT_DIR"
+  echo "  A git pull or a branch switch in that clone changes the install. Keep the clone in place."
 else
   echo "Framework files: copied ($CORE_COUNT core files + $SKILL_COUNT skill(s) to ~/.claude/)"
 fi

@@ -44,18 +44,29 @@ jobs:
       - name: Set temp HOME for install/uninstall smoke tests
         run: echo "HOME=$(mktemp -d)" >> "$GITHUB_ENV"
 
-      - name: Install smoke test
-        run: bash install.sh --yes
+      - name: Install smoke test (default, links)
+        run: |
+          bash install.sh --yes
+          [ -L "$HOME/.claude/AGENTIC.md" ] || { echo "default install made no link" >&2; exit 1; }
 
       - name: Verify smoke test
         run: bash verify.sh
 
       - name: Uninstall smoke test
-        run: bash uninstall.sh --yes
+        run: |
+          bash uninstall.sh --yes
+          test -f AGENTIC.md
+
+      - name: Install --copy smoke test
+        run: |
+          bash install.sh --yes --copy
+          [ ! -L "$HOME/.claude/AGENTIC.md" ] || { echo "--copy made a link" >&2; exit 1; }
+          bash verify.sh
+          bash uninstall.sh --yes
 
   # Windows: Git Bash, the python.org interpreter as `python`, and no `python3`
   # guarantee. The same install, verify and uninstall smoke tests as Linux,
-  # in copy mode and in --link mode.
+  # with the default link install and with --copy.
   windows-smoke:
     runs-on: windows-latest
     defaults:
@@ -83,24 +94,26 @@ jobs:
           echo "HOME=$h" >> "$GITHUB_ENV"
           echo "USERPROFILE=$(cygpath -w "$h")" >> "$GITHUB_ENV"
 
-      - name: Install smoke test
-        run: bash install.sh --yes
+      - name: Install smoke test (default, links)
+        run: |
+          bash install.sh --yes
+          for f in "$HOME"/.claude/AGENTIC.md "$HOME"/.claude/hooks/session-scan.sh "$HOME"/.claude/skills/*/; do
+            f=${f%/}
+            [ -L "$f" ] || { echo "$f is not a link" >&2; exit 1; }
+          done
 
       - name: Verify smoke test
         run: bash verify.sh
 
-      - name: Uninstall smoke test
-        run: bash uninstall.sh --yes
-
-      - name: Install --link smoke test
-        run: |
-          bash install.sh --yes --link
-          for s in "$HOME"/.claude/skills/*/; do
-            s=${s%/}
-            [ -L "$s" ] || { echo "$s is not a link" >&2; exit 1; }
-          done
-
-      - name: Uninstall after --link keeps the repo files
+      - name: Uninstall keeps the repo files
         run: |
           bash uninstall.sh --yes
           test -f skills/agentic-workflow/SKILL.md
+          test -f AGENTIC.md
+
+      - name: Install --copy smoke test
+        run: |
+          bash install.sh --yes --copy
+          [ ! -L "$HOME/.claude/AGENTIC.md" ] || { echo "--copy made a link" >&2; exit 1; }
+          bash verify.sh
+          bash uninstall.sh --yes
