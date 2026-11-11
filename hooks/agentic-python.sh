@@ -41,7 +41,9 @@ agentic_find_python() {
 if sys.version_info < (3, 8): sys.exit(1)
 print(sys.executable.replace("\\", "/"))' 2>/dev/null) || continue
     found="${found%$'\r'}"
-    [ -n "$found" ] && [ -f "$found" ] || continue
+    if [ -z "$found" ] || [ ! -f "$found" ]; then
+      continue
+    fi
     AGENTIC_PYTHON="$found"
     if [ -d "${cache%/*}" ]; then
       printf '%s\n' "$found" >"$cache.$$" 2>/dev/null && mv -f "$cache.$$" "$cache" 2>/dev/null
