@@ -128,7 +128,14 @@ the same commit with the same command stays valid. Do not run it again.
 the background (`run_in_background`), or a `watcher` runs it and returns the
 verdict. The main thread continues the independent work and reads the result
 when it arrives. The `test-run-advisor` hook reminds the main thread when it
-starts a test or type-check run in the foreground.
+starts a test or type-check run in the foreground. While a background run
+reads a file, do not edit that file. Bash reads a script as it runs, so an edit
+changes what the run executes.
+
+**Prove it on the target platform.** When the task makes something work on the
+platform you are on, spend the local proof there. Keep the other platforms'
+paths unchanged, and let CI test them. Ask before you start heavy local
+infrastructure, such as Docker Desktop or a VM, to test a different platform.
 
 For process lifetime, IPC, global command resolution, and UI behavior, exercise
 the real path when available. Try to break an interactive change: empty input,
