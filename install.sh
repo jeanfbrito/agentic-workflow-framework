@@ -489,6 +489,8 @@ if agentic_is_windows && ! command python3 -c '' >/dev/null 2>&1; then
   echo "  Skill steps tell Claude to run 'python3', which is not a real command here."
   echo "  To make it one in Git Bash, run:"
   echo "    mkdir -p ~/bin"
+  # The backslashes are literal text for the user to copy, not escapes.
+  # shellcheck disable=SC2028
   echo "    printf '#!/bin/sh\\nexec \"$AGENTIC_PYTHON\" \"\$@\"\\n' > ~/bin/python3"
 fi
 

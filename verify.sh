@@ -968,6 +968,8 @@ mkdir -p "$AP_DIR/bin" "$AP_DIR/claude"
 printf '#!/bin/sh\necho "Python was not found" >&2\nexit 9009\n' > "$AP_DIR/bin/python3"
 printf '#!/bin/sh\nexec "%s" "$@"\n' "$AP_REAL" > "$AP_DIR/bin/python"
 chmod +x "$AP_DIR/bin/python3" "$AP_DIR/bin/python"
+# The subshell is intended: it fakes Windows without changing this shell.
+# shellcheck disable=SC2030,SC2031
 ap_run() {
   (
     unset -f python3
