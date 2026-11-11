@@ -16,8 +16,12 @@ shopt -s nullglob
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-if ! command -v python3 >/dev/null 2>&1; then
-  echo "ERROR: python3 is required but not found in PATH." >&2
+# Windows: defines `python3` when only `python` or `py` is a real Python 3.
+# shellcheck source=hooks/agentic-python.sh
+. "$SCRIPT_DIR/hooks/agentic-python.sh"
+
+if ! python3 -c 'import sys; sys.exit(sys.version_info < (3, 8))' >/dev/null 2>&1; then
+  echo "ERROR: Python 3.8 or later is required, and none was found." >&2
   exit 1
 fi
 
@@ -79,6 +83,9 @@ remove_file ~/.claude/hooks/stop-ledger-audit.sh
 remove_file ~/.claude/hooks/ledger-append.sh
 remove_file ~/.claude/hooks/skill-review-nudge.sh
 remove_file ~/.claude/hooks/test-run-advisor.sh
+remove_file ~/.claude/hooks/agentic-python.sh
+# Saved Python path (Windows only; see hooks/agentic-python.sh).
+remove_file ~/.claude/.agentic-python
 # The skill review's personal config (~/.claude/agentic-config.json) and
 # history (~/.claude/agentic-state/) stay, so a reinstall keeps them.
 remove_file ~/.claude/skills/.agentic-framework-skills

@@ -1,0 +1,9 @@
+# Keep LF line endings in every checkout. Git for Windows defaults to
+# core.autocrlf=true, which writes CRLF. A CRLF shell script fails in MSYS2
+# and Cygwin bash ($'\r': command not found), and the installer copies these
+# files into ~/.claude/. macOS and Linux checkouts are LF already.
+* text=auto eol=lf
+*.pdf binary
+*.png binary
+*.jpg binary
+*.pyc binary

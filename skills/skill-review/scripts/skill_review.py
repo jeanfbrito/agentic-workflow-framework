@@ -69,7 +69,7 @@ TRANSCRIPT_SKILLS = {"session-mining", "skill-review", "skill-checkup", "learn",
 def load_config():
     cfg = dict(DEFAULT_CONFIG)
     try:
-        cfg.update(json.loads(CONFIG_PATH.read_text()))
+        cfg.update(json.loads(CONFIG_PATH.read_text(encoding="utf-8")))
     except (OSError, ValueError):
         pass
     if os.environ.get("AGENTIC_WIKI_DIR"):
@@ -80,7 +80,7 @@ def load_config():
 def save_config(cfg):
     CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     stored = {k: v for k, v in cfg.items() if v is not None}
-    CONFIG_PATH.write_text(json.dumps(stored, indent=2) + "\n")
+    CONFIG_PATH.write_text(json.dumps(stored, indent=2) + "\n", encoding="utf-8")
 
 
 def expand(path):
@@ -121,7 +121,7 @@ def cmd_config(args):
 
 def read_description(skill_md):
     try:
-        text = skill_md.read_text(errors="replace")[:4000]
+        text = skill_md.read_text(encoding="utf-8", errors="replace")[:4000]
     except OSError:
         return ""
     m = re.search(r"^description:\s*(.+)$", text, re.MULTILINE)
@@ -139,7 +139,7 @@ def skill_dirs(root):
 
 def framework_skill_names():
     try:
-        return {line.strip() for line in FRAMEWORK_MANIFEST.read_text().splitlines() if line.strip()}
+        return {line.strip() for line in FRAMEWORK_MANIFEST.read_text(encoding="utf-8").splitlines() if line.strip()}
     except OSError:
         return {"agentic-workflow", "personal-engineering-rules", "skill-review",
                 "agentic", "blocker", "handoff", "init-agentic", "known-issue", "qq"}
@@ -176,7 +176,7 @@ def global_skills(cfg):
 def plugin_skills():
     """Skills from enabled plugins, newest cached version of each plugin."""
     try:
-        settings = json.loads((CLAUDE_HOME / "settings.json").read_text())
+        settings = json.loads((CLAUDE_HOME / "settings.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         settings = {}
     enabled = {k.split("@")[0] for k, v in (settings.get("enabledPlugins") or {}).items() if v}
@@ -290,7 +290,7 @@ def scan_session(path, since, wiki_root, ignored_roots):
     # Read every line. Transcripts are append-only, so a size cap would cut
     # the newest lines, which are the lines the window counts (issue #3).
     try:
-        handle = path.open(errors="replace")
+        handle = path.open(encoding="utf-8", errors="replace")
     except OSError:
         return None
     facts = {
@@ -614,7 +614,7 @@ def render_markdown(report, previous):
 
 def latest_state():
     try:
-        return json.loads((STATE_DIR / "latest.json").read_text())
+        return json.loads((STATE_DIR / "latest.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
 
@@ -626,13 +626,13 @@ def cmd_measure(args):
     previous = None
     history = STATE_DIR / "history.jsonl"
     try:
-        previous = json.loads(history.read_text().splitlines()[-1])
+        previous = json.loads(history.read_text(encoding="utf-8").splitlines()[-1])
     except (OSError, ValueError, IndexError):
         pass
 
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     report_json = STATE_DIR / f"report-{report['generated_at'][:10]}.json"
-    report_json.write_text(json.dumps(report, indent=2, default=list))
+    report_json.write_text(json.dumps(report, indent=2, default=list), encoding="utf-8")
 
     markdown = render_markdown(report, previous)
     wiki_root = expand(cfg.get("wiki_dir"))
@@ -642,9 +642,9 @@ def cmd_measure(args):
         out_dir = STATE_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
     report_md = out_dir / f"{report['generated_at'][:10]} - Skill Review.md"
-    if report_md.exists() and "_Pending review." not in report_md.read_text():
+    if report_md.exists() and "_Pending review." not in report_md.read_text(encoding="utf-8"):
         report_md = out_dir / f"{report['generated_at'][:10]} - Skill Review (remeasured).md"
-    report_md.write_text(markdown)
+    report_md.write_text(markdown, encoding="utf-8")
 
     summary = {
         "generated_at": report["generated_at"],
@@ -654,14 +654,14 @@ def cmd_measure(args):
         "skills_used_week": sum(1 for s in report["skills"] if s["uses_short"]),
         "skills_total": len(report["skills"]),
     }
-    with history.open("a") as fh:
+    with history.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(summary) + "\n")
     (STATE_DIR / "latest.json").write_text(json.dumps({
         "measured_at": report["generated_at"],
         "report_md": str(report_md),
         "report_json": str(report_json),
         "reviewed": False,
-    }, indent=2))
+    }, indent=2), encoding="utf-8")
     print(json.dumps({"report_md": str(report_md), "report_json": str(report_json), **summary}, indent=2))
     return 0
 
@@ -676,11 +676,11 @@ def once_per_day(tag):
     stamp = STATE_DIR / f"nudged-{tag}"
     today = date.today().isoformat()
     try:
-        if stamp.read_text().strip() == today:
+        if stamp.read_text(encoding="utf-8").strip() == today:
             return False
     except OSError:
         pass
-    stamp.write_text(today)
+    stamp.write_text(today, encoding="utf-8")
     return True
 
 
@@ -698,7 +698,7 @@ def cmd_nudge(_args):
 
     if measured is None or datetime.now(timezone.utc) - measured >= every:
         STATE_DIR.mkdir(parents=True, exist_ok=True)
-        log = open(STATE_DIR / "measure.log", "a")
+        log = open(STATE_DIR / "measure.log", "a", encoding="utf-8")
         subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "measure"],
                          stdout=log, stderr=log, stdin=subprocess.DEVNULL, start_new_session=True)
     elif not state.get("reviewed") and once_per_day("review"):
@@ -718,7 +718,7 @@ def cmd_reviewed(_args):
         return 1
     state["reviewed"] = True
     state["reviewed_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    (STATE_DIR / "latest.json").write_text(json.dumps(state, indent=2))
+    (STATE_DIR / "latest.json").write_text(json.dumps(state, indent=2), encoding="utf-8")
     print(f"Marked reviewed: {state.get('report_md')}")
     return 0
 

@@ -55,7 +55,7 @@ def cost(turns, model=None):
 
 def read_turns(path):
     turns, seen = [], set()
-    for line in open(path, errors='ignore'):
+    for line in open(path, errors='ignore', encoding='utf-8'):
         if '"assistant"' not in line:
             continue
         try:
@@ -81,7 +81,7 @@ def collect(days):
         if os.path.getmtime(f) < cut:
             continue
         try:
-            meta = json.load(open(f[:-6] + '.meta.json'))
+            meta = json.load(open(f[:-6] + '.meta.json', encoding='utf-8'))
         except (OSError, ValueError):
             meta = {}
         role = meta.get('agentType', 'unknown')

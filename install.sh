@@ -17,19 +17,25 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # ---------------------------------------------------------------------------
 
 YES=0
-LINK=0
+LINK=1   # Default: symlink into this clone, so a git pull updates the install.
 WIKI_DIR=""
 for arg in "$@"; do
   case "$arg" in
     --yes|-y) YES=1 ;;
     --link)   LINK=1 ;;
+    --copy)   LINK=0 ;;
     --wiki-dir=*) WIKI_DIR="${arg#--wiki-dir=}" ;;
     --help|-h)
-      echo "Usage: ./install.sh [--yes|-y] [--link] [--wiki-dir=PATH]"
+      echo "Usage: ./install.sh [--yes|-y] [--copy] [--wiki-dir=PATH]"
       echo ""
       echo "  --yes, -y         Skip the confirmation prompt."
-      echo "  --link            Symlink framework files instead of copying (dev mode)."
-      echo "                    Use when iterating on the repo without reinstalling."
+      echo "  (default)         Symlink framework files into this clone. A git pull or"
+      echo "                    a branch switch in the clone changes the install."
+      echo "                    Windows: needs Developer Mode (Settings > System >"
+      echo "                    For developers)."
+      echo "  --copy            Copy the files. The install does not follow the clone,"
+      echo "                    and Windows does not need Developer Mode."
+      echo "  --link            Accepted for older scripts. Same as the default."
       echo "  --wiki-dir=PATH   Folder for wiki pages (an Obsidian vault or any folder"
       echo "                    of Markdown notes). Saved in ~/.claude/agentic-config.json."
       exit 0
@@ -48,9 +54,57 @@ fi
 
 echo "Installing Agentic Workflow Framework..."
 
-if ! command -v python3 >/dev/null 2>&1; then
-  echo "ERROR: python3 is required but not found in PATH. Install python3 and re-run." >&2
+# Windows: defines `python3` when only `python` or `py` is a real Python 3.
+# macOS and Linux: no change.
+# shellcheck source=hooks/agentic-python.sh
+. "$SCRIPT_DIR/hooks/agentic-python.sh"
+
+if ! python3 -c 'import sys; sys.exit(sys.version_info < (3, 8))' >/dev/null 2>&1; then
+  echo "ERROR: Python 3.8 or later is required, and none was found." >&2
+  if agentic_is_windows; then
+    echo "  Install it with: winget install Python.Python.3.12" >&2
+    echo "  The Microsoft Store 'python3' alias is not a real Python. Turn it off in" >&2
+    echo "  Settings > Apps > Advanced app settings > App execution aliases." >&2
+  else
+    echo "  Install python3 and run this script again." >&2
+  fi
   exit 1
+fi
+
+if ! command -v jq >/dev/null 2>&1; then
+  JQ_MISSING=1
+else
+  JQ_MISSING=0
+fi
+
+# Windows: Git Bash `ln -s` makes a COPY with no warning unless it is told to
+# make a real symlink (winsymlinks:nativestrict). A real symlink needs
+# Developer Mode, so the default link install on Windows requires it. This
+# check runs before the installer changes anything, and it stops with the steps
+# to turn it on. --copy makes no symlinks and does not need Developer Mode.
+# macOS and Linux use plain `ln -sfn`.
+if agentic_is_windows; then
+  export MSYS="${MSYS:+$MSYS }winsymlinks:nativestrict"
+  export CYGWIN="${CYGWIN:+$CYGWIN }winsymlinks:nativestrict"
+fi
+
+require_windows_symlinks() {
+  local probe
+  probe=$(mktemp -d)
+  if ! ln -s "$probe" "$probe/link" 2>/dev/null; then
+    rm -rf "$probe"
+    echo "ERROR: the link install on Windows needs Developer Mode, which lets you make symlinks." >&2
+    echo "  1. Open Settings > System > For developers and turn on Developer Mode." >&2
+    echo "  2. Open a new Git Bash and run ./install.sh again." >&2
+    echo "  Or run ./install.sh --copy: files are copied, and Developer Mode is not needed." >&2
+    exit 1
+  fi
+  rm -f "$probe/link"
+  rm -rf "$probe"
+}
+
+if [ "$LINK" -eq 1 ] && agentic_is_windows; then
+  require_windows_symlinks
 fi
 
 # ---------------------------------------------------------------------------
@@ -66,11 +120,15 @@ mkdir -p ~/.claude/skills
 # 3. Copy (or link) framework files
 # ---------------------------------------------------------------------------
 
+link_path() {
+  ln -sfn "$1" "$2"
+}
+
 install_file() {
   local src="$1"
   local dst="$2"
   if [ "$LINK" -eq 1 ]; then
-    ln -sfn "$src" "$dst"
+    link_path "$src" "$dst"
   else
     cp "$src" "$dst"
   fi
@@ -99,6 +157,7 @@ install_file "$SCRIPT_DIR/hooks/stop-ledger-audit.sh"    ~/.claude/hooks/stop-le
 install_file "$SCRIPT_DIR/scripts/ledger-append.sh"      ~/.claude/hooks/ledger-append.sh
 install_file "$SCRIPT_DIR/hooks/skill-review-nudge.sh"   ~/.claude/hooks/skill-review-nudge.sh
 install_file "$SCRIPT_DIR/hooks/test-run-advisor.sh"     ~/.claude/hooks/test-run-advisor.sh
+install_file "$SCRIPT_DIR/hooks/agentic-python.sh"       ~/.claude/hooks/agentic-python.sh
 
 # ---------------------------------------------------------------------------
 # 3b. Skills -- dynamic install (loop over skills/*/)
@@ -109,10 +168,11 @@ INSTALLED_SKILLS=()
 
 for skill_src in "$SCRIPT_DIR/skills"/*/; do
   [ -d "$skill_src" ] || continue
+  skill_src="${skill_src%/}"
   skill_name="$(basename "$skill_src")"
   if [ "$LINK" -eq 1 ]; then
     rm -rf ~/.claude/skills/"$skill_name"
-    ln -sfn "$skill_src" ~/.claude/skills/"$skill_name"
+    link_path "$skill_src" ~/.claude/skills/"$skill_name"
   else
     rm -rf ~/.claude/skills/"$skill_name"
     cp -R "$skill_src" ~/.claude/skills/"$skill_name"
@@ -355,9 +415,10 @@ echo "--- Summary ---"
 echo ""
 
 SKILL_COUNT="${#INSTALLED_SKILLS[@]}"
-CORE_COUNT=$((7 + AGENT_COUNT + COMMAND_COUNT))  # AGENTIC.md + 5 hooks + ledger-append.sh + agents + commands
+CORE_COUNT=$((9 + AGENT_COUNT + COMMAND_COUNT))  # AGENTIC.md + 7 hook files + ledger-append.sh + agents + commands
 if [ "$LINK" -eq 1 ]; then
-  echo "Framework files: linked (dev mode) -- $CORE_COUNT core symlinks + $SKILL_COUNT skill(s) to $SCRIPT_DIR"
+  echo "Framework files: linked -- $CORE_COUNT core symlinks + $SKILL_COUNT skill(s) to $SCRIPT_DIR"
+  echo "  A git pull or a branch switch in that clone changes the install. Keep the clone in place."
 else
   echo "Framework files: copied ($CORE_COUNT core files + $SKILL_COUNT skill(s) to ~/.claude/)"
 fi
@@ -416,6 +477,27 @@ echo ""
 echo "Wiki folder: $WIKI_ACTION"
 python3 "$SKILL_REVIEW" config | grep '"wiki_dir"' | sed 's/^/ /'
 echo "  Change it with: python3 $SKILL_REVIEW config --wiki-dir <path>"
+
+if [ "$JQ_MISSING" -eq 1 ]; then
+  echo ""
+  echo "Optional: jq is not installed. The test-run advisor hook stays silent without it."
+  if agentic_is_windows; then
+    echo "  Install it with: winget install jqlang.jq (then open a new terminal)"
+  else
+    echo "  Install it with your package manager (brew install jq, apt install jq)."
+  fi
+fi
+
+if agentic_is_windows && ! command python3 -c '' >/dev/null 2>&1; then
+  echo ""
+  echo "Windows note: the hooks find Python by themselves ($AGENTIC_PYTHON)."
+  echo "  Skill steps tell Claude to run 'python3', which is not a real command here."
+  echo "  To make it one in Git Bash, run:"
+  echo "    mkdir -p ~/bin"
+  # The backslashes are literal text for the user to copy, not escapes.
+  # shellcheck disable=SC2028
+  echo "    printf '#!/bin/sh\\nexec \"$AGENTIC_PYTHON\" \"\$@\"\\n' > ~/bin/python3"
+fi
 
 echo ""
 echo "How to use:"

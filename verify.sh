@@ -9,8 +9,12 @@ shopt -s nullglob
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-if ! command -v python3 >/dev/null 2>&1; then
-  echo "ERROR: python3 is required but not found in PATH." >&2
+# Windows: defines `python3` when only `python` or `py` is a real Python 3.
+# shellcheck source=hooks/agentic-python.sh
+. "$SCRIPT_DIR/hooks/agentic-python.sh"
+
+if ! python3 -c 'import sys; sys.exit(sys.version_info < (3, 8))' >/dev/null 2>&1; then
+  echo "ERROR: Python 3.8 or later is required, and none was found." >&2
   exit 1
 fi
 
@@ -43,6 +47,7 @@ FILES=(
   ~/.claude/hooks/stop-ledger-audit.sh
   ~/.claude/hooks/ledger-append.sh
   ~/.claude/hooks/skill-review-nudge.sh
+  ~/.claude/hooks/agentic-python.sh
 )
 for f in "$SCRIPT_DIR"/agents/*.md; do
   FILES+=( ~/.claude/agents/"$(basename "$f")" )
@@ -173,7 +178,10 @@ TRA_BG=$(echo '{"session_id":"v3","tool_input":{"command":"yarn test","run_in_ba
 TRA_SUB=$(echo '{"session_id":"v4","agent_id":"a1","tool_input":{"command":"yarn test"}}' | tra)
 TRA_OTHER=$(echo '{"session_id":"v5","tool_input":{"command":"ls jest.config.js"}}' | tra)
 rm -rf "$TRA_STATE"
-if echo "$TRA_REAL" | grep -q 'test-run:' && echo "$TRA_TSC" | grep -q 'test-run:'; then
+if ! command -v jq >/dev/null 2>&1; then
+  # The hook is silent by design without jq. Report it, do not fail.
+  echo "[-] test-run advisor: foreground jest and tsc runs get advice (SKIPPED: jq is not installed)"
+elif echo "$TRA_REAL" | grep -q 'test-run:' && echo "$TRA_TSC" | grep -q 'test-run:'; then
   check "test-run advisor: foreground jest and tsc runs get advice" "$PASS"
 else
   check "test-run advisor: foreground jest and tsc runs get advice" "$FAIL"
@@ -947,6 +955,52 @@ fi
 rm -rf "$RS_HOME"
 
 # ---------------------------------------------------------------------------
+# Check -- agentic-python.sh on Windows: when `python3` is the Microsoft Store
+#   alias (prints an error, exits 9009), the resolver finds `python`, saves
+#   its path, and a second run reads the saved path. The test fakes Windows
+#   with OSTYPE=msys, so it runs on every platform. Also: on macOS and Linux
+#   the resolver defines nothing.
+# ---------------------------------------------------------------------------
+
+AP_DIR=$(mktemp -d)
+AP_REAL=$(python3 -c 'import sys; print(sys.executable.replace("\\", "/"))' | tr -d '\r')
+mkdir -p "$AP_DIR/bin" "$AP_DIR/claude"
+printf '#!/bin/sh\necho "Python was not found" >&2\nexit 9009\n' > "$AP_DIR/bin/python3"
+printf '#!/bin/sh\nexec "%s" "$@"\n' "$AP_REAL" > "$AP_DIR/bin/python"
+chmod +x "$AP_DIR/bin/python3" "$AP_DIR/bin/python"
+# The subshell is intended: it fakes Windows without changing this shell.
+# shellcheck disable=SC2030,SC2031
+ap_run() {
+  (
+    unset -f python3
+    unset AGENTIC_PYTHON
+    OSTYPE=msys
+    PATH="$AP_DIR/bin:$PATH"
+    CLAUDE_CONFIG_DIR="$AP_DIR/claude"
+    # shellcheck source=hooks/agentic-python.sh
+    . "$SCRIPT_DIR/hooks/agentic-python.sh"
+    python3 -c 'import sys; print(sys.version_info[0], sys.flags.utf8_mode)'
+  ) 2>/dev/null | tr -d '\r'
+}
+AP_FIRST=$(ap_run)
+AP_CACHED=$(cat "$AP_DIR/claude/.agentic-python" 2>/dev/null)
+AP_SECOND=$(ap_run)
+AP_POSIX=$(
+  unset -f python3
+  OSTYPE=linux-gnu
+  # shellcheck source=hooks/agentic-python.sh
+  . "$SCRIPT_DIR/hooks/agentic-python.sh"
+  if declare -F python3 >/dev/null; then echo defined; else echo none; fi
+)
+rm -rf "$AP_DIR"
+if [ "$AP_FIRST" = "3 1" ] && [ "$AP_SECOND" = "3 1" ] && [ -n "$AP_CACHED" ] \
+   && [ "$AP_POSIX" = "none" ]; then
+  check "agentic-python.sh: skips a broken python3 on Windows, saves the path, no change on POSIX" "$PASS"
+else
+  check "agentic-python.sh: skips a broken python3 on Windows, saves the path, no change on POSIX (first=$AP_FIRST cached=$AP_CACHED second=$AP_SECOND posix=$AP_POSIX)" "$FAIL"
+fi
+
+# ---------------------------------------------------------------------------
 # Check -- role-ab check accepts a valid spec and rejects a bad base commit
 #   before any arm spends money.
 # ---------------------------------------------------------------------------
@@ -955,7 +1009,7 @@ RA_DIR=$(mktemp -d)
 touch "$RA_DIR/brief.md" "$RA_DIR/grade.py"
 ra_spec() {
   printf '{"out":"%s/out","agent":"builder-fast","arms":[{"id":"a","model":"haiku","effort":"low"}],"tasks":[{"id":"t","repo":"%s","base":"%s","brief":"brief.md","grade":"grade.py"}]}' \
-    "$RA_DIR" "$SCRIPT_DIR" "$1"
+    "$(agentic_native_path "$RA_DIR")" "$(agentic_native_path "$SCRIPT_DIR")" "$1"
 }
 ra_spec HEAD > "$RA_DIR/good.json"
 ra_spec 0000000deadbeef > "$RA_DIR/bad.json"
