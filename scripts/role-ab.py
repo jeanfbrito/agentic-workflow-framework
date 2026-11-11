@@ -24,12 +24,17 @@ Known limit: a worktree shares refs with its repository, so an arm can read comm
 Scan stream.jsonl for git reads of other refs before you trust a result.
 """
 import concurrent.futures as cf, json, os, random, re, string, subprocess as sp, sys, time
+import shutil
+
+# On Windows an npm install of the CLI is claude.cmd, which a bare 'claude' does
+# not start. shutil.which resolves it through PATHEXT.
+CLAUDE_BIN = shutil.which('claude') or 'claude'
 
 ev = lambda p: os.path.expanduser(p)
 
 
 def load(spec_path):
-    spec = json.load(open(spec_path))
+    spec = json.load(open(spec_path, encoding='utf-8'))
     spec['_dir'] = os.path.dirname(os.path.abspath(spec_path))
     spec['out'] = ev(spec['out'])
     return spec
@@ -56,42 +61,42 @@ def run_arm(spec, task, arm, force=False):
         for cmd in task.get('setup', []):
             sp.run(render(ev(cmd), wt, armdir), shell=True, cwd=wt, check=True)
     for dst, src in task.get('files', {}).items():
-        open(render(dst, wt, armdir), 'w').write(open(os.path.join(spec['_dir'], src)).read())
-    brief = render(open(os.path.join(spec['_dir'], task['brief'])).read(), wt, armdir)
-    open(os.path.join(armdir, 'brief.md'), 'w').write(brief)
-    cmd = ['claude', '-p', '--agent', spec['agent'], '--model', arm['model'], '--effort', arm['effort'],
+        open(render(dst, wt, armdir), 'w', encoding='utf-8').write(open(os.path.join(spec['_dir'], src), encoding='utf-8').read())
+    brief = render(open(os.path.join(spec['_dir'], task['brief']), encoding='utf-8').read(), wt, armdir)
+    open(os.path.join(armdir, 'brief.md'), 'w', encoding='utf-8').write(brief)
+    cmd = [CLAUDE_BIN, '-p', '--agent', spec['agent'], '--model', arm['model'], '--effort', arm['effort'],
            '--output-format', 'stream-json', '--verbose', '--no-session-persistence', '--strict-mcp-config',
            '--settings', '{"disableAllHooks":true}', '--permission-mode', 'bypassPermissions',
            '--max-budget-usd', str(spec.get('budget_usd', 15)), '--disallowedTools', *spec.get('disallowed', [])]
     env = dict(os.environ, CLAUDE_CODE_EFFORT_LEVEL=arm['effort'])
     t0 = time.time()
-    with open(os.path.join(armdir, 'stream.jsonl'), 'w') as out, open(os.path.join(armdir, 'stderr.log'), 'w') as err:
-        p = sp.Popen(cmd, cwd=wt, env=env, stdin=sp.PIPE, stdout=out, stderr=err, text=True)
+    with open(os.path.join(armdir, 'stream.jsonl'), 'w', encoding='utf-8') as out, open(os.path.join(armdir, 'stderr.log'), 'w', encoding='utf-8') as err:
+        p = sp.Popen(cmd, cwd=wt, env=env, stdin=sp.PIPE, stdout=out, stderr=err, text=True, encoding='utf-8')
         try:
             p.communicate(brief, timeout=spec.get('timeout_s', 3600))
         except sp.TimeoutExpired:
             p.kill(); p.wait()
     result = {'wall_s': round(time.time() - t0), 'exit': p.returncode}
-    for line in open(os.path.join(armdir, 'stream.jsonl')):
+    for line in open(os.path.join(armdir, 'stream.jsonl'), encoding='utf-8'):
         if line.startswith('{') and '"type":"result"' in line.replace(' ', ''):
             r = json.loads(line)
             result.update({k: r.get(k) for k in ('subtype', 'is_error', 'num_turns', 'total_cost_usd', 'duration_ms', 'result')})
             result['models'] = {m: {k: u.get(k) for k in ('inputTokens', 'outputTokens', 'cacheReadInputTokens',
                                                           'cacheCreationInputTokens', 'costUSD')}
                                 for m, u in (r.get('modelUsage') or {}).items()}
-    json.dump(result, open(os.path.join(armdir, 'result.json'), 'w'), indent=1)
+    json.dump(result, open(os.path.join(armdir, 'result.json'), 'w', encoding='utf-8'), indent=1)
     genv = dict(os.environ, WT=wt, ARMDIR=armdir, BASE=task['base'], REPO=task['repo'])
-    g = sp.run(['python3', '-I', os.path.join(spec['_dir'], task['grade'])], env=genv, capture_output=True, text=True)
+    g = sp.run([sys.executable, '-I', os.path.join(spec['_dir'], task['grade'])], env=genv, capture_output=True, text=True, encoding='utf-8')
     try:
         grade = json.loads(g.stdout.strip().splitlines()[-1])
     except Exception:
         grade = {'grader_error': (g.stdout + g.stderr)[-2000:]}
-    json.dump(grade, open(os.path.join(armdir, 'grade.json'), 'w'), indent=1)
+    json.dump(grade, open(os.path.join(armdir, 'grade.json'), 'w', encoding='utf-8'), indent=1)
     sp.run('git add -A -N . 2>/dev/null; true', shell=True, cwd=wt)
     anchor = (sp.run(f'git rev-list --merges {task["base"]}..HEAD | tail -1', shell=True, cwd=wt,
-                     capture_output=True, text=True).stdout.strip() or task['base'])
-    diff = sp.run(['git', 'diff', anchor, '--', '.', ':!*.uid', ':!node_modules', ':!project/.godot'], cwd=wt, capture_output=True, text=True).stdout
-    open(os.path.join(armdir, 'diff.patch'), 'w').write(diff)
+                     capture_output=True, text=True, encoding='utf-8').stdout.strip() or task['base'])
+    diff = sp.run(['git', 'diff', anchor, '--', '.', ':!*.uid', ':!node_modules', ':!project/.godot'], cwd=wt, capture_output=True, text=True, encoding='utf-8').stdout
+    open(os.path.join(armdir, 'diff.patch'), 'w', encoding='utf-8').write(diff)
     return f'{task["id"]}/{arm["id"]}: done in {result["wall_s"]}s, ${result.get("total_cost_usd")}'
 
 
@@ -145,44 +150,44 @@ def cmd_judge(spec, args):
         parts, brief = [], ''
         for lab, arm in labels.items():
             armdir = paths(spec, task, arm)[1]
-            brief = open(os.path.join(armdir, 'brief.md')).read()
-            res = json.load(open(os.path.join(armdir, 'result.json')))
-            diff = open(os.path.join(armdir, 'diff.patch')).read()
+            brief = open(os.path.join(armdir, 'brief.md'), encoding='utf-8').read()
+            res = json.load(open(os.path.join(armdir, 'result.json'), encoding='utf-8'))
+            diff = open(os.path.join(armdir, 'diff.patch'), encoding='utf-8').read()
             if len(diff) > 30000:
                 diff = diff[:30000] + f'\n... [diff truncated, {len(diff)} chars total]'
-            grade = open(os.path.join(armdir, 'grade.json')).read()
+            grade = open(os.path.join(armdir, 'grade.json'), encoding='utf-8').read()
             parts.append(f'=== CANDIDATE {lab} ===\nREPORT:\n{res.get("result") or "(no final report)"}\n\n'
                          f'harness_checks:\n{grade}\n\nDIFF (the builder\'s own changes):\n{diff}\n')
         prompt = (JUDGE.replace('{brief}', re.sub(r'/\S*/(wt|runs)/\S+', '<worktree>', brief))
                   .replace('{reference}', task.get('reference', '(none)')).replace('{candidates}', '\n'.join(parts)))
         jdir = os.path.join(spec['out'], 'judge', task['id'])
         os.makedirs(jdir, exist_ok=True)
-        open(os.path.join(jdir, 'prompt.md'), 'w').write(prompt)
-        p = sp.run(['claude', '-p', '--model', spec.get('judge_model', 'opus'), '--effort', 'high',
+        open(os.path.join(jdir, 'prompt.md'), 'w', encoding='utf-8').write(prompt)
+        p = sp.run([CLAUDE_BIN, '-p', '--model', spec.get('judge_model', 'opus'), '--effort', 'high',
                     '--output-format', 'json', '--no-session-persistence', '--strict-mcp-config', '--tools', '',
-                    '--settings', '{"disableAllHooks":true}'], input=prompt, capture_output=True, text=True,
+                    '--settings', '{"disableAllHooks":true}'], input=prompt, capture_output=True, text=True, encoding='utf-8',
                    cwd=jdir)
         out = json.loads(p.stdout)
         m = re.search(r'\{.*\}', out.get('result', ''), re.S)
         verdict = json.loads(m.group(0)) if m else {'raw': out.get('result')}
         verdict['labels'] = {lab: arm['id'] for lab, arm in labels.items()}
         verdict['judge_cost_usd'] = out.get('total_cost_usd')
-        json.dump(verdict, open(os.path.join(jdir, 'verdict.json'), 'w'), indent=1)
+        json.dump(verdict, open(os.path.join(jdir, 'verdict.json'), 'w', encoding='utf-8'), indent=1)
         print(task['id'], 'judged', verdict.get('ranking'), verdict['labels'])
 
 
 def cmd_report(spec, args):
     for task in spec['tasks']:
         vpath = os.path.join(spec['out'], 'judge', task['id'], 'verdict.json')
-        verdict = json.load(open(vpath)) if os.path.exists(vpath) else {}
+        verdict = json.load(open(vpath, encoding='utf-8')) if os.path.exists(vpath) else {}
         by_arm = {v: k for k, v in verdict.get('labels', {}).items()}
         print(f'\n## {task["id"]}')
         for arm in spec['arms']:
             armdir = paths(spec, task, arm)[1]
             if not os.path.exists(os.path.join(armdir, 'result.json')):
                 continue
-            r = json.load(open(os.path.join(armdir, 'result.json')))
-            g = json.load(open(os.path.join(armdir, 'grade.json')))
+            r = json.load(open(os.path.join(armdir, 'result.json'), encoding='utf-8'))
+            g = json.load(open(os.path.join(armdir, 'grade.json'), encoding='utf-8'))
             s = verdict.get('scores', {}).get(by_arm.get(arm['id'], ''), {})
             rank = (verdict.get('ranking') or []).index(by_arm[arm['id']]) + 1 if by_arm.get(arm['id']) in (verdict.get('ranking') or []) else '-'
             print(f'- {arm["id"]:16} ${r.get("total_cost_usd") or 0:6.2f} {r.get("num_turns")} turns {r["wall_s"]}s '
