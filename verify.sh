@@ -215,6 +215,22 @@ if command -v node >/dev/null 2>&1; then
 fi
 
 # ---------------------------------------------------------------------------
+# Check 5d -- harness-leak scanner: unit tests with a fake ~/.claude and real
+# temporary repos, and the hook is registered.
+# ---------------------------------------------------------------------------
+
+if python3 -m unittest "$SCRIPT_DIR/skills/harness-leak-review/tests/test_harness_leaks.py" >/dev/null 2>&1; then
+  check "harness-leak scanner: unit tests pass" "$PASS"
+else
+  check "harness-leak scanner: unit tests pass" "$FAIL"
+fi
+if grep -q 'harness_leaks.py --hook' ~/.claude/settings.json 2>/dev/null; then
+  check "settings.json contains the harness-leak hook" "$PASS"
+else
+  check "settings.json contains the harness-leak hook" "$FAIL"
+fi
+
+# ---------------------------------------------------------------------------
 # Check 6 -- session-scan.sh three-state test (exercises the real repo hook,
 #            not a duplicated inline logic string)
 # ---------------------------------------------------------------------------

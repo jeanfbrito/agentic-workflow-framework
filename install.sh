@@ -279,6 +279,15 @@ pre_tool.append({
 })
 hooks["PreToolUse"] = pre_tool
 
+# --- PreToolUse: harness-leak advisor (personal tools named in shared repos) ---
+# Marker 'harness_leaks.py' identifies this entry.
+pre_tool = strip_framework(hooks["PreToolUse"], 'harness_leaks.py')
+pre_tool.append({
+    "matcher": "Edit|Write|MultiEdit|Bash",
+    "hooks": [{"type": "command", "command": "python3 ~/.claude/skills/harness-leak-review/scripts/harness_leaks.py --hook", "timeout": 5}]
+})
+hooks["PreToolUse"] = pre_tool
+
 # --- permissions.allow ---
 # Ensure permissions and allow list exist, preserving all existing entries + order.
 perms = data.setdefault("permissions", {})

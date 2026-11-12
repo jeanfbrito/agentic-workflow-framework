@@ -221,6 +221,11 @@ skills to keep, merge, promote, or retire. The user approves each change.
   changes need no graph query. GitNexus is personal: keep its index, rules
   and generated files out of shared repositories. Setup, reindex and linked
   worktrees: [GitNexus](skills/agentic-workflow/references/gitnexus.md).
+- Keep personal tools out of shared repositories. Guidance that a repository
+  ships (AGENTS.md, skills, agents, hooks, docs) must work without your MCP
+  servers, plugins, agent roles, skills and `~/.claude` paths: describe the
+  action, not your tool. The `harness-leak-review` skill scans a repository,
+  and its hook flags a new mention when you edit or commit.
 - Use context-mode to process large searches, logs, and data. Use native tools
   for file edits, and RTK for supported short shell observations.
 - Look up uncertain or version-sensitive API and CLI behavior in primary

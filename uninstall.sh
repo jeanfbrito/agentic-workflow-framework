@@ -232,6 +232,7 @@ if "PreToolUse" in hooks:
     before = len(hooks["PreToolUse"])
     hooks["PreToolUse"] = strip_entries(hooks["PreToolUse"], "test-run-advisor.sh")
     hooks["PreToolUse"] = strip_entries(hooks["PreToolUse"], "gitnexus-scope.cjs")
+    hooks["PreToolUse"] = strip_entries(hooks["PreToolUse"], "harness_leaks.py")
     if len(hooks["PreToolUse"]) != before:
         changed = True
         print("REMOVED_PTU")
