@@ -79,6 +79,7 @@ remove_file ~/.claude/hooks/stop-ledger-audit.sh
 remove_file ~/.claude/hooks/ledger-append.sh
 remove_file ~/.claude/hooks/skill-review-nudge.sh
 remove_file ~/.claude/hooks/test-run-advisor.sh
+remove_file ~/.claude/hooks/gitnexus-scope.cjs
 # The skill review's personal config (~/.claude/agentic-config.json) and
 # history (~/.claude/agentic-state/) stay, so a reinstall keeps them.
 remove_file ~/.claude/skills/.agentic-framework-skills
@@ -230,6 +231,7 @@ if "UserPromptSubmit" in hooks:
 if "PreToolUse" in hooks:
     before = len(hooks["PreToolUse"])
     hooks["PreToolUse"] = strip_entries(hooks["PreToolUse"], "test-run-advisor.sh")
+    hooks["PreToolUse"] = strip_entries(hooks["PreToolUse"], "gitnexus-scope.cjs")
     if len(hooks["PreToolUse"]) != before:
         changed = True
         print("REMOVED_PTU")

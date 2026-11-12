@@ -43,6 +43,7 @@ FILES=(
   ~/.claude/hooks/stop-ledger-audit.sh
   ~/.claude/hooks/ledger-append.sh
   ~/.claude/hooks/skill-review-nudge.sh
+  ~/.claude/hooks/gitnexus-scope.cjs
 )
 for f in "$SCRIPT_DIR"/agents/*.md; do
   FILES+=( ~/.claude/agents/"$(basename "$f")" )
@@ -182,6 +183,35 @@ if [ -z "$TRA_AGAIN$TRA_BG$TRA_SUB$TRA_OTHER" ]; then
   check "test-run advisor: rate limit, background, subagent and non-test commands stay silent" "$PASS"
 else
   check "test-run advisor: rate limit, background, subagent and non-test commands stay silent" "$FAIL"
+fi
+
+# ---------------------------------------------------------------------------
+# Check 5c -- GitNexus scope hook: in a linked worktree it fills a missing
+# repo and, for detect_changes, a missing worktree. It keeps values that the
+# call already has, and it stays silent in a repo without a .gitnexus index.
+# ---------------------------------------------------------------------------
+
+if command -v node >/dev/null 2>&1; then
+  GNS_DIR=$(cd "$(mktemp -d)" && pwd -P)
+  git -C "$GNS_DIR" init -q main && git -C "$GNS_DIR/main" commit -q --allow-empty -m init \
+    && git -C "$GNS_DIR/main" worktree add -q "$GNS_DIR/wt" -b wt 2>/dev/null
+  mkdir -p "$GNS_DIR/main/.gitnexus"
+  gns() { node "$SCRIPT_DIR/hooks/gitnexus-scope.cjs" 2>/dev/null; }
+  GNS_FILL=$(printf '{"tool_name":"mcp__gitnexus__detect_changes","cwd":"%s","tool_input":{}}' "$GNS_DIR/wt" | gns)
+  GNS_KEEP=$(printf '{"tool_name":"mcp__gitnexus__detect_changes","cwd":"%s","tool_input":{"repo":"x","worktree":"/y"}}' "$GNS_DIR/wt" | gns)
+  rm -rf "$GNS_DIR/main/.gitnexus"
+  GNS_NOIDX=$(printf '{"tool_name":"mcp__gitnexus__impact","cwd":"%s","tool_input":{}}' "$GNS_DIR/main" | gns)
+  rm -rf "$GNS_DIR"
+  if echo "$GNS_FILL" | python3 -c "import json,sys; u=json.load(sys.stdin)['hookSpecificOutput']['updatedInput']; sys.exit(0 if u['repo'].endswith('/main') and u['worktree'].endswith('/wt') else 1)" 2>/dev/null; then
+    check "gitnexus-scope: fills repo and worktree in a linked worktree" "$PASS"
+  else
+    check "gitnexus-scope: fills repo and worktree in a linked worktree" "$FAIL"
+  fi
+  if [ -z "$GNS_KEEP$GNS_NOIDX" ]; then
+    check "gitnexus-scope: keeps given values, silent without an index" "$PASS"
+  else
+    check "gitnexus-scope: keeps given values, silent without an index" "$FAIL"
+  fi
 fi
 
 # ---------------------------------------------------------------------------

@@ -214,9 +214,13 @@ skills to keep, merge, promote, or retire. The user approves each change.
 
 ## Tools
 
-- Use GitNexus for indexed structural and impact questions. A missing or stale
-  symbol is unknown impact. Use a bounded source lookup to resolve the gap.
-  Prose and configuration edits without symbol changes need no graph query.
+- Use GitNexus for indexed structural and impact questions. Run `impact`
+  before you edit a symbol, and `detect_changes` before you commit. Treat
+  `risk: UNKNOWN` and a `partial` result as unresolved, and close the gap with
+  a bounded source lookup. Prose and configuration edits without symbol
+  changes need no graph query. GitNexus is personal: keep its index, rules
+  and generated files out of shared repositories. Setup, reindex and linked
+  worktrees: [GitNexus](skills/agentic-workflow/references/gitnexus.md).
 - Use context-mode to process large searches, logs, and data. Use native tools
   for file edits, and RTK for supported short shell observations.
 - Look up uncertain or version-sensitive API and CLI behavior in primary

@@ -99,6 +99,7 @@ install_file "$SCRIPT_DIR/hooks/stop-ledger-audit.sh"    ~/.claude/hooks/stop-le
 install_file "$SCRIPT_DIR/scripts/ledger-append.sh"      ~/.claude/hooks/ledger-append.sh
 install_file "$SCRIPT_DIR/hooks/skill-review-nudge.sh"   ~/.claude/hooks/skill-review-nudge.sh
 install_file "$SCRIPT_DIR/hooks/test-run-advisor.sh"     ~/.claude/hooks/test-run-advisor.sh
+install_file "$SCRIPT_DIR/hooks/gitnexus-scope.cjs"     ~/.claude/hooks/gitnexus-scope.cjs
 
 # ---------------------------------------------------------------------------
 # 3b. Skills -- dynamic install (loop over skills/*/)
@@ -266,6 +267,15 @@ pre_tool = strip_framework(hooks.setdefault("PreToolUse", []), 'test-run-advisor
 pre_tool.append({
     "matcher": "Bash",
     "hooks": [{"type": "command", "command": "bash ~/.claude/hooks/test-run-advisor.sh", "timeout": 5}]
+})
+hooks["PreToolUse"] = pre_tool
+
+# --- PreToolUse: GitNexus scope (fills repo/worktree in linked worktrees) ---
+# Marker 'gitnexus-scope.cjs' identifies this entry.
+pre_tool = strip_framework(hooks["PreToolUse"], 'gitnexus-scope.cjs')
+pre_tool.append({
+    "matcher": "mcp__gitnexus__.*",
+    "hooks": [{"type": "command", "command": "node ~/.claude/hooks/gitnexus-scope.cjs", "timeout": 5}]
 })
 hooks["PreToolUse"] = pre_tool
 
