@@ -64,9 +64,8 @@ reports. Describe the observed scope and validation gaps. Use terms such as
 "regression" or "failed in production" when evidence supports them; do not soften
 an established failure or imply a failure that was not observed.
 
-Before reporting a measured number (speedup, regression, CI timing), vet it with
-the `benchmark-checklist` skill. Name what limits it. Rule out errors,
-skipped work, untuned sides, and noise.
+Before reporting a measured number (speedup, regression, CI timing), name what
+limits it. Rule out errors, skipped work, untuned sides, and noise.
 
 Distinguish source inspection, focused tests, and live behavior. Report a blocked
 check and its practical limit without implying that untested behavior passed.

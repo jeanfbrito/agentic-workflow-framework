@@ -95,8 +95,7 @@ line per skill with its reason. Then run `SR reviewed`.
 
 The counts above show which skills run. They do not show how well a skill
 did its job. When the user asks for a quality grade, follow the procedure in
-`~/Github/agent-skills/skill-checkup/SKILL.md` (it was a separate skill until
-2026-10-16). It samples recent transcripts, scores efficiency and code quality
+`~/Github/agent-skills/skill-checkup/SKILL.md`. It samples recent transcripts, scores efficiency and code quality
 with its own scripts, and drafts SKILL.md edits. Apply each edit only with the
 user's approval, through `update-skill`.
 

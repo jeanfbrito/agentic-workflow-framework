@@ -43,7 +43,7 @@ fills the worktree arguments (see below).
 - Run `detect_changes()` before you commit, to check that the change touches
   only the expected symbols and flows. A result with `partial: true` or
   `truncated: true` is not a clean check. Run it again.
-- To explore unfamiliar code, use `query({query: "<concept>"})`. For one
+- To explore unfamiliar code, use `query({search_query: "<concept>"})`. For one
   symbol's callers, callees and flows, use `context({name: "<symbol>"})`.
 - Rename a symbol with `rename`, not with find-and-replace.
 - A missing or stale symbol is unknown impact. Use a bounded source lookup to
