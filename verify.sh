@@ -201,14 +201,16 @@ fi
 
 if command -v node >/dev/null 2>&1; then
   GNS_DIR=$(cd "$(mktemp -d)" && pwd -P)
-  git -C "$GNS_DIR" init -q main && git -C "$GNS_DIR/main" commit -q --allow-empty -m init \
+  # The hook payload gives cwd as a native path. On Windows, node cannot read an MSYS /tmp path.
+  GNS_CWD=$(agentic_native_path "$GNS_DIR")
+  git -C "$GNS_DIR" init -q main && git -C "$GNS_DIR/main" -c user.name=verify -c user.email=verify@localhost commit -q --allow-empty -m init \
     && git -C "$GNS_DIR/main" worktree add -q "$GNS_DIR/wt" -b wt 2>/dev/null
   mkdir -p "$GNS_DIR/main/.gitnexus"
   gns() { node "$SCRIPT_DIR/hooks/gitnexus-scope.cjs" 2>/dev/null; }
-  GNS_FILL=$(printf '{"tool_name":"mcp__gitnexus__detect_changes","cwd":"%s","tool_input":{}}' "$GNS_DIR/wt" | gns)
-  GNS_KEEP=$(printf '{"tool_name":"mcp__gitnexus__detect_changes","cwd":"%s","tool_input":{"repo":"x","worktree":"/y"}}' "$GNS_DIR/wt" | gns)
+  GNS_FILL=$(printf '{"tool_name":"mcp__gitnexus__detect_changes","cwd":"%s","tool_input":{}}' "$GNS_CWD/wt" | gns)
+  GNS_KEEP=$(printf '{"tool_name":"mcp__gitnexus__detect_changes","cwd":"%s","tool_input":{"repo":"x","worktree":"/y"}}' "$GNS_CWD/wt" | gns)
   rm -rf "$GNS_DIR/main/.gitnexus"
-  GNS_NOIDX=$(printf '{"tool_name":"mcp__gitnexus__impact","cwd":"%s","tool_input":{}}' "$GNS_DIR/main" | gns)
+  GNS_NOIDX=$(printf '{"tool_name":"mcp__gitnexus__impact","cwd":"%s","tool_input":{}}' "$GNS_CWD/main" | gns)
   rm -rf "$GNS_DIR"
   if echo "$GNS_FILL" | python3 -c "import json,sys; u=json.load(sys.stdin)['hookSpecificOutput']['updatedInput']; sys.exit(0 if u['repo'].endswith('/main') and u['worktree'].endswith('/wt') else 1)" 2>/dev/null; then
     check "gitnexus-scope: fills repo and worktree in a linked worktree" "$PASS"
