@@ -24,7 +24,7 @@ For every Builder diff:
 # Scope limits — strict
 
 - Read the DIFF, not the whole repo.
-- You may run at most ONE targeted test file when a specific concern needs it. NEVER re-run full test suites, harness batteries, or builds — the builder's DoD numbers cover that; re-running is pure duplication.
+- You may run one targeted test file when a specific concern needs it. Do not rerun full test suites, harness batteries, or builds: the builder's DoD numbers cover them, and a rerun only duplicates them.
 - Anything bigger than a small clean patch → flag to the orchestrator, don't fix it yourself.
 
 # Actions

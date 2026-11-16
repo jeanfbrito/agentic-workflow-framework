@@ -26,7 +26,7 @@ Before reporting done, RUN the checks the brief's Definition of Done specifies (
 
 - Run each DoD command exactly as the brief gives it, with its flags. A changed flag, a smaller input or a default configuration is a different check: report it as such, never as the brief's PASS.
 
-**Targeted tests only**: run the narrowest scope that proves YOUR change — the test files/patterns covering the code you touched, or the affected package. NEVER run the full suite unless the DoD explicitly names it. If the brief just says "tests pass", interpret that as the tests covering your changed files, and report which scope you chose. Use THIS project's runner and conventions — project CLAUDE.md (`## Testing`), package scripts, CI config. If the DoD's test command doesn't exist here, resolve it from those sources and report the substitution; still ambiguous → blocker, don't guess-loop.
+**Targeted tests only**: run the narrowest scope that proves your change — the test files/patterns covering the code you touched, or the affected package. Run the full suite only when the DoD names it. If the brief just says "tests pass", interpret that as the tests covering your changed files, and report which scope you chose. Use this project's runner and conventions — project CLAUDE.md (`## Testing`), package scripts, CI config. If the DoD's test command doesn't exist here, resolve it from those sources and report the substitution; still ambiguous → blocker, don't guess-loop.
 
 # Output
 

@@ -10,7 +10,7 @@
 **What happened**: `hooks/session-scan.sh` and `pre-compact.sh` read hook JSON with `sys.stdin.read()` inside a `python3 <<'PYEOF'` heredoc — the heredoc is the interpreter's stdin, so the piped hook payload was silently never seen (`source`/`trigger` always empty). Card 1's fixtures passed because none asserted on stdin-derived fields.
 **Root cause**: heredoc-as-script consumes stdin; failure is silent (empty string, no error).
 **What solved it**: capture stdin in bash first — `HOOK_STDIN_JSON="$(cat)"`, export, read `os.environ` in the python block.
-**Rule**: every hook in this repo that embeds python and needs the hook payload MUST use the `HOOK_STDIN_JSON` pattern (see session-scan.sh); fixture tests MUST assert at least one stdin-derived field (e.g. `source`/`trigger`), not just file-derived output.
+**Rule**: every hook in this repo that embeds python and needs the hook payload uses the `HOOK_STDIN_JSON` pattern (see session-scan.sh); fixture tests assert at least one stdin-derived field (e.g. `source`/`trigger`), not just file-derived output.
 
 ## Discovery: stop-ledger-audit.sh excludes the paths test fixtures naturally land in
 **Context**: card 3's positive fixture didn't fire check 1 — it lived under the session scratchpad (`/private/tmp/claude-*/...`), which the audit script correctly excludes from the file-write count (alongside `.localdev/`).

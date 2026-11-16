@@ -90,8 +90,11 @@ current default and make new behavior opt-in unless the request changes it.
 **Encode lessons in structure.** A correction or rule that repeats belongs in the
 strongest mechanism that works. In order: architecture that removes the mistake,
 a type, a lint or CI check whose error names the fix, a test, or a hook. Prove
-the check fails on the real past mistake. Write prose only for judgment calls
-nothing can check. Pair each prose rule with what enforces it when something does.
+the check fails on the real past mistake. Then remove the old instances, or
+record them in a baseline the check shrinks. An agent copies the nearest
+example, so an old instance keeps teaching the mistake. Write prose only for
+judgment calls nothing can check. Pair each prose rule with what enforces it
+when something does.
 
 ## Completion and Evidence
 
@@ -99,6 +102,12 @@ Carry the requested work through implementation and the checks needed to make
 the result usable and reviewable. Fix failures caused by the change and rerun
 affected checks within existing authorization. Do not stop at the first patch
 when running or inspecting the result is part of the request.
+
+Before long, delegated, or unattended work starts, give each part of the
+outcome a check that passes or fails. A check can be a test, a build, a
+screenshot, or a command output. Do this first where the request has more than one plausible
+reading (migrate every user, or only new logins?). A wrong reading then fails
+early, not at the final review. Report the real output of each check.
 
 For a delivery across scenarios or sessions, use the
 [evidence manifest](skills/agentic-workflow/references/evidence.md).
@@ -206,6 +215,11 @@ be public, run `~/.claude/skills/asd-ste100/scripts/ste-lint.py` on it. Fix
 each hard finding, or say why it stays. If the skill is missing, install it
 from `jeanfbrito/agent-skills`. Keep every hedge, because confidence is content.
 Voice-led writing, such as blog posts, is out of scope.
+
+Write rules for a model calmly. Give the reason, not capitals or exclamation
+marks: a shouted rule makes current models overreact. `CLAUDE.md` and
+`AGENTS.md` hold only what the code does not show. The framework repo's
+`scripts/check-emphasis.py` checks the prompts it ships.
 
 ## Wiki and Skills
 

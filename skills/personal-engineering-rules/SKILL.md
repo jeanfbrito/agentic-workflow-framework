@@ -46,6 +46,13 @@ module. Reject a list that must be hand-synced with another, or state written by
 than one owner. Keep one way, make internals unreachable, derive the second
 list, and give each piece of state one owner.
 
+A code comment that explains why a workaround is acceptable is a known issue
+in disguise. The next agent reads it as permission and copies the workaround.
+Fix the root cause. If you cannot fix it now, record it in
+`docs/KNOWN_ISSUES.md` and keep the comment to a pointer to that entry. When
+the workaround is a pattern (timers, effects, cross-layer imports), add the
+lint rule whose error names the right fix.
+
 ## Review Feedback
 
 Treat bot and agent comments as hypotheses to check against the code and request.

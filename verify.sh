@@ -259,6 +259,18 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Check 5f -- calm prompts: no NEVER/MUST/MANDATORY in capitals in the agent,
+# command and skill prompts or AGENTIC.md. The old agent files had 10.
+# ---------------------------------------------------------------------------
+
+if EMPH_OUT=$(python3 "$SCRIPT_DIR/scripts/check-emphasis.py" "$SCRIPT_DIR" 2>&1); then
+  check "calm prompts: no shouted rules in shipped prompts" "$PASS"
+else
+  echo "$EMPH_OUT" | head -5
+  check "calm prompts: no shouted rules in shipped prompts" "$FAIL"
+fi
+
+# ---------------------------------------------------------------------------
 # Check 6 -- session-scan.sh three-state test (exercises the real repo hook,
 #            not a duplicated inline logic string)
 # ---------------------------------------------------------------------------
