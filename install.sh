@@ -445,7 +445,7 @@ echo "--- Summary ---"
 echo ""
 
 SKILL_COUNT="${#INSTALLED_SKILLS[@]}"
-CORE_COUNT=$((9 + AGENT_COUNT + COMMAND_COUNT))  # AGENTIC.md + 7 hook files + ledger-append.sh + agents + commands
+CORE_COUNT=$((11 + AGENT_COUNT + COMMAND_COUNT))  # AGENTIC.md + 9 hook files + ledger-append.sh + agents + commands
 if [ "$LINK" -eq 1 ]; then
   echo "Framework files: linked -- $CORE_COUNT core symlinks + $SKILL_COUNT skill(s) to $SCRIPT_DIR"
   echo "  A git pull or a branch switch in that clone changes the install. Keep the clone in place."
