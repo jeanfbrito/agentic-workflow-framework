@@ -11,3 +11,7 @@
 .claude/skills/gitnexus/
 # Local knowledge store
 .knowledge/
+
+# Python bytecode
+__pycache__/
+*.pyc
