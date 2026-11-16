@@ -141,6 +141,17 @@ not see paint.
 the script, codemod, or check that does or proves it. Do not work by hand. The
 reviewer reruns the tool instead of trusting the claim.
 
+**Build the tool when you struggle.** When you make the same observation by
+hand a third time (read a log, decode a format, check a page, compare an
+output), or three commands fail in a row, stop and write a task tool: a probe,
+a repro script, a parser, or a screenshot or diff check. Prove the tool on one
+case with a known answer before you trust its output. A tool with a quiet bug
+gives wrong evidence for the rest of the task. Keep it in the scratchpad or
+`.localdev/`. Promote it to the repo's `scripts/` or a skill only when a second
+task uses it. Keep each tool small and each completion check fast. A check
+that grows after each lesson costs more time than it saves. The
+`struggle-advisor` hook gives this advice after repeated command failures.
+
 Distinguish source inspection, mocked tests, and live verification. Label each
 claim in a report as measured, inferred, or a guess in the same sentence.
 Settle whether something shipped or is ready from the primary artifact: the

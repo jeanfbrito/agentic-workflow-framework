@@ -100,6 +100,7 @@ install_file "$SCRIPT_DIR/scripts/ledger-append.sh"      ~/.claude/hooks/ledger-
 install_file "$SCRIPT_DIR/hooks/skill-review-nudge.sh"   ~/.claude/hooks/skill-review-nudge.sh
 install_file "$SCRIPT_DIR/hooks/test-run-advisor.sh"     ~/.claude/hooks/test-run-advisor.sh
 install_file "$SCRIPT_DIR/hooks/gitnexus-scope.cjs"     ~/.claude/hooks/gitnexus-scope.cjs
+install_file "$SCRIPT_DIR/hooks/struggle-advisor.sh"     ~/.claude/hooks/struggle-advisor.sh
 
 # ---------------------------------------------------------------------------
 # 3b. Skills -- dynamic install (loop over skills/*/)
@@ -139,6 +140,7 @@ chmod +x ~/.claude/hooks/stop-ledger-audit.sh
 chmod +x ~/.claude/hooks/ledger-append.sh
 chmod +x ~/.claude/hooks/skill-review-nudge.sh
 chmod +x ~/.claude/hooks/test-run-advisor.sh
+chmod +x ~/.claude/hooks/struggle-advisor.sh
 
 # ---------------------------------------------------------------------------
 # 5. CLAUDE.md -- backup + ensure @AGENTIC.md import line
@@ -287,6 +289,15 @@ pre_tool.append({
     "hooks": [{"type": "command", "command": "python3 ~/.claude/skills/harness-leak-review/scripts/harness_leaks.py --hook", "timeout": 5}]
 })
 hooks["PreToolUse"] = pre_tool
+
+# --- PostToolUseFailure: struggle advisor ---
+# Marker 'struggle-advisor.sh' identifies this entry.
+post_fail = strip_framework(hooks.setdefault("PostToolUseFailure", []), 'struggle-advisor.sh')
+post_fail.append({
+    "matcher": "Bash",
+    "hooks": [{"type": "command", "command": "bash ~/.claude/hooks/struggle-advisor.sh", "timeout": 5}]
+})
+hooks["PostToolUseFailure"] = post_fail
 
 # --- permissions.allow ---
 # Ensure permissions and allow list exist, preserving all existing entries + order.

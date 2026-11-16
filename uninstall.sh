@@ -80,6 +80,7 @@ remove_file ~/.claude/hooks/ledger-append.sh
 remove_file ~/.claude/hooks/skill-review-nudge.sh
 remove_file ~/.claude/hooks/test-run-advisor.sh
 remove_file ~/.claude/hooks/gitnexus-scope.cjs
+remove_file ~/.claude/hooks/struggle-advisor.sh
 # The skill review's personal config (~/.claude/agentic-config.json) and
 # history (~/.claude/agentic-state/) stay, so a reinstall keeps them.
 remove_file ~/.claude/skills/.agentic-framework-skills
@@ -238,6 +239,17 @@ if "PreToolUse" in hooks:
         print("REMOVED_PTU")
     else:
         print("PTU_NOT_FOUND")
+
+if "PostToolUseFailure" in hooks:
+    before = len(hooks["PostToolUseFailure"])
+    hooks["PostToolUseFailure"] = strip_entries(hooks["PostToolUseFailure"], "struggle-advisor.sh")
+    if not hooks["PostToolUseFailure"]:
+        del hooks["PostToolUseFailure"]
+    if len(hooks.get("PostToolUseFailure", [])) != before:
+        changed = True
+        print("REMOVED_PTUF")
+    else:
+        print("PTUF_NOT_FOUND")
 
 # Strip framework permission globs (current Edit globs, the Write globs older
 # installs granted, and stale .claude/mytasks variants) from permissions.allow

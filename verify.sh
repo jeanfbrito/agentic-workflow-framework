@@ -231,6 +231,34 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Check 5e -- struggle advisor: advises at the third real Bash failure in a
+# session. The cases are the failures of one real session: a yt-dlp rate
+# limit retried by hand. Bare "Exit code 1" (a grep with no match), subagent
+# failures and a fourth failure inside the rate limit stay silent.
+# ---------------------------------------------------------------------------
+
+SA_STATE=$(mktemp -d)
+sa() { AGENTIC_STATE_DIR="$SA_STATE" bash "$SCRIPT_DIR/hooks/struggle-advisor.sh" 2>/dev/null; }
+sa_fail() { jq -n --arg s "$1" --arg e "$2" '{session_id: $s, tool_name: "Bash", error: $e}'; }
+SA_1=$(sa_fail s1 $'Exit code 1\nERROR: Unable to download video subtitles for \'en\': HTTP Error 429: Too Many Requests' | sa)
+SA_GREP=$(sa_fail s1 'Exit code 1' | sa)
+SA_2=$(sa_fail s1 $'Exit code 1\nERROR: could not find chrome cookies database' | sa)
+SA_3=$(sa_fail s1 $'Exit code 1\nERROR: HTTP Error 429: Too Many Requests' | sa)
+SA_4=$(sa_fail s1 $'Exit code 2\nusage: yt2txt' | sa)
+SA_SUB=$( { sa_fail s2 $'Exit code 1\nx'; } | jq '. + {agent_id: "a1"}' | sa)
+rm -rf "$SA_STATE"
+if [ -z "$SA_1$SA_GREP$SA_2" ] && echo "$SA_3" | grep -q 'struggle:'; then
+  check "struggle advisor: silent on failures 1-2 and bare exit codes, advises on the third real failure" "$PASS"
+else
+  check "struggle advisor: silent on failures 1-2 and bare exit codes, advises on the third real failure" "$FAIL"
+fi
+if [ -z "$SA_4$SA_SUB" ]; then
+  check "struggle advisor: rate limit and subagent failures stay silent" "$PASS"
+else
+  check "struggle advisor: rate limit and subagent failures stay silent" "$FAIL"
+fi
+
+# ---------------------------------------------------------------------------
 # Check 6 -- session-scan.sh three-state test (exercises the real repo hook,
 #            not a duplicated inline logic string)
 # ---------------------------------------------------------------------------
